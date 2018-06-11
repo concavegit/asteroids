@@ -1,0 +1,54 @@
+name:                asteroids
+version:             0.1.0.0
+github:              "concavegit/asteroids"
+license:             BSD3
+author:              "Kawin Nikomborirak"
+maintainer:          "concavegit@gmail.com"
+copyright:           "2018 Kawin Nikomborirak"
+
+extra-source-files:
+- README.org
+
+data-files:
+  - res/*.bmp
+
+synopsis:            Flappy bird to practice multiplication.
+category:            Game
+
+description:         Please see the README on GitLab at <https://gitlab.com/concavegit/asteroids#readme>
+
+ghc-options:
+  - -Wall
+
+dependencies:
+  - base >= 4.7 && < 5
+  - Yampa
+  - lens
+  - mtl
+  - random
+  - sdl2
+
+library:
+  source-dirs: src
+
+executables:
+  asteroids:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - asteroids
+
+tests:
+  asteroids-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - asteroids
