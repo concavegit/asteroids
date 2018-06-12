@@ -65,10 +65,10 @@ shipTop f game = stopShip 0 LT (f . ($ game) . set gameShip)
   (game ^. gameShip)
 
 shipInBounds :: (Game -> SF a Ship) -> Game -> SF a Ship
-shipInBounds f game = shipTop (shipBottom f) game
+shipInBounds f = shipTop $ shipBottom f
 
 shipFallBounded :: Game -> SF a Ship
-shipFallBounded game = shipInBounds (shipFall . view gameShip) game
+shipFallBounded = shipInBounds $ shipFall . view gameShip
 
 shipFlapFallBounded :: Game -> SF Controller Ship
 shipFlapFallBounded game = shipFlap

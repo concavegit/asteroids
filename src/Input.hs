@@ -12,7 +12,7 @@ keyDown :: Keycode -> Event -> Bool
 keyDown
   k
   (Event _ (KeyboardEvent (KeyboardEventData _ Pressed _ (Keysym _ e _))))
-  = (k == e)
+  = k == e
 keyDown _ _ = False
 
 handleEvent :: Event -> Controller -> Controller
@@ -22,7 +22,7 @@ handleEvent e
   | otherwise = id
 
 senseController :: Controller -> IO Controller
-senseController c = ($ c) . foldr (.) id . map handleEvent <$> pollEvents
+senseController c = ($ c) . foldr ((.) . handleEvent) id <$> pollEvents
 
 senseDT :: IORef Double -> IO Double
 senseDT tr = do
