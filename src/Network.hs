@@ -27,8 +27,9 @@ shipFall ship = proc _ -> do
     y <- integral >>^ (+ ship ^. shipRect . rectP . _y) -< v
   returnA -< execState (shipV .= y >> shipRect . rectP . _y .= y) ship
 
-  where g = ship ^. shipG
-        vT = ship ^. shipVT
+  where
+    g = ship ^. shipG
+    vT = ship ^. shipVT
 
 shipFlap' :: (a -> SF Controller b) -> a -> SF Controller (b, Event b)
 shipFlap' f ship0 = proc ctrl -> do
