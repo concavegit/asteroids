@@ -7,7 +7,16 @@ import           SDL
 import           Types
 
 ship0 :: IO Ship
-ship0 = Ship (Rectangle (P $ V2 0 0) (V2 20 12)) 0 40 80 <$> getDataFileName "res/spaceship.bmp"
+ship0 =
+  do
+    sprite <- getDataFileName "res/spaceship.bmp"
+    pure Ship
+      { _shipRect = (Rectangle (P $ V2 0 0) (V2 20 12))
+      , _shipV = 0
+      , _shipVT = 40
+      , _shipG = 80
+      , _shipSprite = sprite
+      }
 
 world :: World
 world = World 5 (V2 128 96) 120
@@ -18,7 +27,8 @@ game0 = do
   pure Game
     { _gameBounds = (world ^. worldDims)
     , _gameShip = ship
-    , _gameQuit = False}
+    , _gameQuit = False
+    }
 
 main :: IO ()
 main = game0 >>= asteroids world
