@@ -36,6 +36,13 @@ module Types
   , multB
   , multChoices
 
+  -- * Asteroid
+  , Asteroid (..)
+  , asteroidRect
+  , asteroidV
+  , asteroidNum
+  , asteroidSprite
+
   -- * Extra Lenses
   , rectP
   , rectD
@@ -84,11 +91,19 @@ data Mult = Mult
   , _multChoices :: [Either Int Int]
   } deriving Show
 
+data Asteroid = Asteroid
+  { _asteroidRect   :: Rectangle Double
+  , _asteroidV      :: Double
+  , _asteroidNum
+  , _asteroidSprite :: FilePath
+  } deriving Show
+
 makeLenses ''Controller
 makeLenses ''World
 makeLenses ''Game
 makeLenses ''Ship
 makeLenses ''Mult
+makeLenses ''Asteroid
 
 class Object o where
   objRect :: o -> Rectangle Double
