@@ -19,7 +19,10 @@ ship0 =
       }
 
 world :: World
-world = World 5 (V2 128 96) 120
+world = World
+  { _worldScale = 5
+  , _worldDims = (V2 128 96)
+  , _worldFPS = 120}
 
 game0 :: IO Game
 game0 = do
