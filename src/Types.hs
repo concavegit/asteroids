@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections   #-}
 
 module Types
   ( -- * Object
@@ -30,15 +31,24 @@ module Types
   , shipG
   , shipSprite
 
+  -- * Mult
+  , Mult (..)
+  , multA
+  , multB
+  , multAns
+
   -- * Extra Lenses
   , rectP
   , rectD
   ) where
 
+import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.IO.Class
+import           Control.Monad.State
 import           Foreign.C.Types
 import           SDL
+import           System.Random
 
 data Controller = Controller
   { _controllerFlap    :: Bool
@@ -69,10 +79,17 @@ data Ship = Ship
   , _shipSprite :: FilePath
   } deriving Show
 
+data Mult = Mult
+  { _multA   :: Int
+  , _multB   :: Int
+  , _multAns :: Int
+  } deriving Show
+
 makeLenses ''Controller
 makeLenses ''World
 makeLenses ''Game
 makeLenses ''Ship
+makeLenses ''Mult
 
 class Object o where
   objRect :: o -> Rectangle Double
@@ -98,8 +115,28 @@ instance Object Game where
     objDraw r w $ game ^. gameShip
     present r
 
+instance Random Mult where
+  random = runState $ newMult <$> rand <*> rand
+
+  randomR ms = runState $ newMult <$> randR r <*> randR r
+    where
+      f = round . sqrt . fromIntegral . view multAns
+      r = (f *** f) ms
+
 rectP :: Lens' (Rectangle a) (Point V2 a)
 rectP f (Rectangle p a) = flip Rectangle a <$> f p
 
 rectD :: Lens' (Rectangle a) (V2 a)
 rectD f (Rectangle p a) = Rectangle p <$> f a
+
+rand :: (RandomGen g, Random a) => State g a
+rand = state random
+
+randR :: (RandomGen s, Random a) => (a, a) -> State s a
+randR = state . randomR
+
+newMult :: Int -> Int -> Mult
+newMult a b = Mult
+  { _multA = a
+  , _multB = b
+  , _multAns = a * b}
