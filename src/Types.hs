@@ -116,11 +116,18 @@ instance Object Game where
     present r
 
 instance Random Mult where
+
+  -- | Generate a random multiplication problem with a random amount
+  -- of answer choices.
   random = runState $ do
     n <- rand
     a <- rand
     rand >>= randMultChoices n a
 
+  -- | Generate random multiplication problem given boundaries as follows:
+  --   * The multiplier boundaries are the square-roots of the problem answers.
+  --   * The amount of answer choices is bounded by the amount of
+  --     answer choices in the problems.
   randomR ms@(m1, m2) = runState $ do
     n <- randR (length $ m1 ^. multChoices, length $ m2 ^. multChoices)
     a <- randR r
