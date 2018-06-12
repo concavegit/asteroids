@@ -94,7 +94,7 @@ data Mult = Mult
 data Asteroid = Asteroid
   { _asteroidRect   :: Rectangle Double
   , _asteroidV      :: Double
-  , _asteroidNum
+  , _asteroidNum    :: Int
   , _asteroidSprite :: FilePath
   } deriving Show
 
