@@ -35,20 +35,20 @@ module Types
   , Mult (..)
   , multA
   , multB
-  , multAns
+  , multChoices
 
   -- * Extra Lenses
   , rectP
   , rectD
   ) where
 
-import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.State
+import           Data.Either
 import           Foreign.C.Types
+import           FRP.Yampa
 import           SDL
-import           System.Random
 
 data Controller = Controller
   { _controllerFlap    :: Bool
@@ -80,9 +80,9 @@ data Ship = Ship
   } deriving Show
 
 data Mult = Mult
-  { _multA   :: Int
-  , _multB   :: Int
-  , _multAns :: Int
+  { _multA       :: Int
+  , _multB       :: Int
+  , _multChoices :: [Either Int Int]
   } deriving Show
 
 makeLenses ''Controller
@@ -116,12 +116,20 @@ instance Object Game where
     present r
 
 instance Random Mult where
-  random = runState $ newMult <$> rand <*> rand
+  random = runState $ do
+    n <- rand
+    a <- rand
+    rand >>= randMultChoices n a
 
-  randomR ms = runState $ newMult <$> randR r <*> randR r
+  randomR ms@(m1, m2) = runState $ do
+    n <- randR (length $ m1 ^. multChoices, length $ m2 ^. multChoices)
+    a <- randR r
+    b <- randR r
+    randMultChoices n a b
+
     where
-      f = round . sqrt . fromIntegral . view multAns
-      r = (f *** f) ms
+      r = uncurry (***)
+        (dup $ round . sqrt . fromIntegral . head . lefts . view multChoices) ms
 
 rectP :: Lens' (Rectangle a) (Point V2 a)
 rectP f (Rectangle p a) = flip Rectangle a <$> f p
@@ -135,8 +143,16 @@ rand = state random
 randR :: (RandomGen s, Random a) => (a, a) -> State s a
 randR = state . randomR
 
-newMult :: Int -> Int -> Mult
-newMult a b = Mult
-  { _multA = a
-  , _multB = b
-  , _multAns = a * b}
+randMultChoices :: RandomGen s => Int -> Int -> Int -> State s Mult
+randMultChoices n a b = map (Right . (wrong !!))
+  <$> replicateM (n - 1) (randR (0, length wrong - 1))
+  >>= flip fmap (randR (0, n - 1))
+  . ((Mult a b . ((. (Left ans:)) . (++) <$> uncurry take <*> uncurry drop)) .)
+  . flip (,)
+
+  where
+    a' = div a 10
+    b' = div b 10
+    ans = a * b
+    wrong = filter (/= ans)
+      $ (+ (mod a 10 * mod b 10)) . (* 100) <$> [a' * b' .. (a' + 1) * (a' + 1)]
