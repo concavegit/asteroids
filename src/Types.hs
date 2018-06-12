@@ -40,6 +40,12 @@ import           Control.Monad.IO.Class
 import           Foreign.C.Types
 import           SDL
 
+data Controller = Controller
+  { _controllerFlap    :: Bool
+  , _controllerRestart :: Bool
+  , _controllerQuit    :: Bool
+  } deriving Show
+
 data World = World
   { -- | The scale of the window in pixels/meter.
     _worldScale :: Double
@@ -47,6 +53,12 @@ data World = World
   , _worldDims  :: V2 Double
   -- | Game sampling rate.
   , _worldFPS   :: Double
+  } deriving Show
+
+data Game = Game
+  { _gameShip   :: Ship
+  , _gameBounds :: V2 Double
+  , _gameQuit   :: Bool
   } deriving Show
 
 data Ship = Ship
@@ -57,22 +69,10 @@ data Ship = Ship
   , _shipSprite :: FilePath
   } deriving Show
 
-data Controller = Controller
-  { _controllerFlap    :: Bool
-  , _controllerRestart :: Bool
-  , _controllerQuit    :: Bool
-  } deriving Show
-
-data Game = Game
-  { _gameShip   :: Ship
-  , _gameBounds :: V2 Double
-  , _gameQuit   :: Bool
-  } deriving Show
-
-makeLenses ''Ship
-makeLenses ''World
 makeLenses ''Controller
+makeLenses ''World
 makeLenses ''Game
+makeLenses ''Ship
 
 class Object o where
   objRect :: o -> Rectangle Double
