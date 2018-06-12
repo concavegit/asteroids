@@ -115,12 +115,6 @@ class Object o where
   objDraw r w = (rendererDrawColor r $= V4 255 255 0 255 >>)
     . drawRect r . Just . objPRect w
 
-instance Object Ship where
-  objRect = view shipRect
-  objDraw r w ship = loadBMP (ship ^. shipSprite)
-    >>= createTextureFromSurface r
-    >>= \t -> copy r t Nothing (pure $ objPRect w ship)
-
 instance Object Game where
   objRect = Rectangle (P $ V2 0 0) . view gameBounds
   objDraw r w game = do
@@ -128,6 +122,12 @@ instance Object Game where
     clear r
     objDraw r w $ game ^. gameShip
     present r
+
+instance Object Ship where
+  objRect = view shipRect
+  objDraw r w ship = loadBMP (ship ^. shipSprite)
+    >>= createTextureFromSurface r
+    >>= \t -> copy r t Nothing (pure $ objPRect w ship)
 
 instance Random Mult where
 
