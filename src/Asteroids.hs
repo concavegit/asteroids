@@ -27,6 +27,8 @@ asteroids world game = do
     (\_ -> render r world)
     (network game)
 
+  quit
+
   where controller = Controller
           { _controllerFlap = False
           , _controllerRestart = False
