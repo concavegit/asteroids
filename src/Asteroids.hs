@@ -29,12 +29,13 @@ asteroids world game = do
 
   quit
 
-  where controller = Controller
-          { _controllerFlap = False
-          , _controllerRestart = False
-          , _controllerQuit = False
-          }
+  where
+    controller = Controller
+      { _controllerFlap = False
+      , _controllerRestart = False
+      , _controllerQuit = False
 
+      }
 render :: MonadIO m => Renderer -> World -> Game -> m Bool
 render r w g = do
   objDraw r w g
