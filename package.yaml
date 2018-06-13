@@ -28,6 +28,7 @@ dependencies:
   - random
   - sdl2
   - sdl2-ttf
+  - text
 
 library:
   source-dirs: src

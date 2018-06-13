@@ -54,6 +54,7 @@ import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.State
 import           Data.Either
+import           Data.Text              (pack)
 import           Foreign.C.Types
 import           FRP.Yampa
 import           SDL
@@ -133,6 +134,27 @@ instance Object Ship where
   objDraw r w ship = loadBMP (ship ^. shipSprite)
     >>= createTextureFromSurface r
     >>= \t -> copy r t Nothing (pure $ objPRect w ship)
+
+instance Object Asteroid where
+  objRect = view asteroidRect
+  objDraw r w asteroid = do
+    sprite <- loadBMP (asteroid ^. asteroidSprite)
+      >>= createTextureFromSurface r
+    copy r sprite Nothing (pure rect)
+
+    num <- solid (asteroid ^. asteroidFont) (asteroid ^. asteroidColor) text
+      >>= createTextureFromSurface r
+    numD <- fmap fromIntegral . uncurry V2
+      <$> size (asteroid ^. asteroidFont) text
+    copy r num Nothing . Just
+      $ Rectangle
+      (rect ^. rectP
+       + (P $ round . (/ 2) . fromIntegral <$> (rect ^. rectD - numD))
+      ) numD
+
+      where
+        text = pack . show $ asteroid ^. asteroidNum
+        rect = objPRect w asteroid
 
 instance Random Mult where
 
