@@ -79,15 +79,15 @@ data Game = Game
   { _gameShip   :: Ship
   , _gameBounds :: V2 Double
   , _gameQuit   :: Bool
-  } deriving Show
+  }
 
 data Ship = Ship
   { _shipRect   :: Rectangle Double
   , _shipV      :: Double
   , _shipVT     :: Double
   , _shipG      :: Double
-  , _shipSprite :: FilePath
-  } deriving Show
+  , _shipSprite :: Surface
+  }
 
 data Mult = Mult
   { _multA       :: Int
@@ -131,8 +131,7 @@ instance Object Game where
 
 instance Object Ship where
   objRect = view shipRect
-  objDraw r w ship = loadBMP (ship ^. shipSprite)
-    >>= createTextureFromSurface r
+  objDraw r w ship = createTextureFromSurface r (ship ^. shipSprite)
     >>= \t -> copy r t Nothing (pure $ objPRect w ship)
 
 instance Object Asteroid where
