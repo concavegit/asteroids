@@ -9,7 +9,7 @@ import           Types
 ship0 :: IO Ship
 ship0 =
   do
-    sprite <- getDataFileName "res/spaceship.bmp"
+    sprite <- getDataFileName "res/spaceship.bmp" >>= loadBMP
     pure Ship
       { _shipRect = Rectangle (P $ V2 0 0) (V2 20 12)
       , _shipV = 0
