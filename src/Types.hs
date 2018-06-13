@@ -42,6 +42,8 @@ module Types
   , asteroidV
   , asteroidNum
   , asteroidSprite
+  , asteroidFont
+  , asteroidColor
 
   -- * Extra Lenses
   , rectP
@@ -55,6 +57,7 @@ import           Data.Either
 import           Foreign.C.Types
 import           FRP.Yampa
 import           SDL
+import           SDL.Font
 
 data Controller = Controller
   { _controllerFlap    :: Bool
@@ -96,6 +99,8 @@ data Asteroid = Asteroid
   , _asteroidV      :: Double
   , _asteroidNum    :: Int
   , _asteroidSprite :: FilePath
+  , _asteroidFont   :: Font
+  , _asteroidColor  :: Color
   } deriving Show
 
 makeLenses ''Controller

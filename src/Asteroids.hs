@@ -11,11 +11,14 @@ import           FRP.Yampa
 import           Input
 import           Network
 import           SDL
+import qualified SDL.Font               as Font
 import           Types
 
 asteroids :: World -> Game -> IO ()
 asteroids world game = do
   initializeAll
+  Font.initialize
+
   w <- createWindow "Asteroids" defaultWindow
     {windowInitialSize = round . (world ^. worldScale *) <$> world ^. worldDims}
   r <- createRenderer w (-1) defaultRenderer
@@ -27,6 +30,7 @@ asteroids world game = do
     (\_ -> render r world)
     (network game)
 
+  Font.quit
   quit
 
   where

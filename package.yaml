@@ -27,6 +27,7 @@ dependencies:
   - mtl
   - random
   - sdl2
+  - sdl2-ttf
 
 library:
   source-dirs: src
