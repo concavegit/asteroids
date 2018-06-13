@@ -4,6 +4,7 @@ module Network
   ( network
   ) where
 
+import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
@@ -77,12 +78,12 @@ shipFlapFallBounded :: Game -> SF Controller Ship
 shipFlapFallBounded game = shipFlap
   (shipFallBounded . ($ game) . set gameShip) $ game ^. gameShip
 
-asteroidBeltMap :: Functor f => (a -> b) -> f (Either a a) -> f (Either b b)
-asteroidBeltMap f = fmap $ either (Left . f) (Right . f)
+eitherFmap :: Functor f => (a -> b) -> f (Either a a) -> f (Either b b)
+eitherFmap = fmap . liftA2 either (Left .) (Right .)
 
 asteroidsForward :: AsteroidBelt -> SF a AsteroidBelt
 asteroidsForward belt = proc _ -> integral
-  >>^ flip asteroidBeltMap belt . (asteroidRect . rectP . _x .~)
+  >>^ flip eitherFmap belt . (asteroidRect . rectP . _x .~)
   . (+ aster ^. asteroidRect . rectP . _x) -< aster ^. asteroidV
   where aster = either id id $ head belt
 
@@ -96,7 +97,7 @@ asteroidsBackAround' f game0 = proc game -> do
 asteroidsBackAround :: (Game -> SF a AsteroidBelt) -> Game -> SF a AsteroidBelt
 asteroidsBackAround f game0 = switch (asteroidsBackAround' f game0)
   $ \asters -> asteroidsBackAround f $ game0
-  & gameAsteroidBelt .~ asteroidBeltMap
+  & gameAsteroidBelt .~ eitherFmap
   (asteroidRect . rectP . _x .~ game0 ^. gameBounds . _x) asters
 
 asteroidsForwardAround :: Game -> SF Game AsteroidBelt
