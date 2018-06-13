@@ -8,6 +8,7 @@ module Types
   , Game (..)
   , gameShip
   , gameBounds
+  , gameMultObj
   , gameAsteroidBelt
   , gameQuit
 
@@ -36,6 +37,13 @@ module Types
   , multA
   , multB
   , multChoices
+
+  -- * MultObj
+  , MultObj (..)
+  , multObjPos
+  , multObjMult
+  , multObjFont
+  , multObjColor
 
   -- * Asteroid
   , Asteroid (..)
@@ -82,7 +90,7 @@ data World = World
 data Game = Game
   { _gameShip         :: Ship
   , _gameBounds       :: V2 Double
-  , _gameMult         :: Mult
+  , _gameMultObj      :: MultObj
   , _gameAsteroidBelt :: AsteroidBelt
   , _gameQuit         :: Bool
   }
@@ -101,6 +109,13 @@ data Mult = Mult
   , _multChoices :: [Either Int Int]
   } deriving Show
 
+data MultObj = MultObj
+  { _multObjPos   :: Point V2 Double
+  , _multObjMult  :: Mult
+  , _multObjFont  :: Font
+  , _multObjColor :: Color
+  }
+
 data Asteroid = Asteroid
   { _asteroidRect   :: Rectangle Double
   , _asteroidV      :: Double
@@ -117,6 +132,7 @@ makeLenses ''World
 makeLenses ''Game
 makeLenses ''Ship
 makeLenses ''Mult
+makeLenses ''MultObj
 makeLenses ''Asteroid
 
 class Object o where
@@ -136,12 +152,24 @@ instance Object Game where
     clear r
     traverse_ (objDraw r w . either id id) $ game ^. gameAsteroidBelt
     objDraw r w $ game ^. gameShip
+    objDraw r w $ game ^. gameMultObj
     present r
 
 instance Object Ship where
   objRect = view shipRect
   objDraw r w ship = createTextureFromSurface r (ship ^. shipSprite)
     >>= \t -> copy r t Nothing (pure $ objPRect w ship)
+
+instance Object MultObj where
+  objRect o = Rectangle (o ^. multObjPos) $ V2 0 0
+  objDraw r w o = do
+    txt <- solid (o ^. multObjFont) (o ^. multObjColor) prompt >>= createTextureFromSurface r
+    dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2 <$> size (o ^. multObjFont) prompt
+    copy r txt Nothing $ Just dest
+
+    where
+      mul = o ^. multObjMult
+      prompt = pack $ (++) . (++ " × ") <$> show . view multA <*> show . view multB $ mul
 
 instance Object Asteroid where
   objRect = view asteroidRect
@@ -210,7 +238,7 @@ randMultChoices n a b = map (Left . (wrong !!))
     b' = div b 10
     ans = a * b
     wrong = filter (/= ans)
-      $ (+ (mod a 10 * mod b 10)) . (* 10) <$> [a' * b' * 10 .. (a' + 1) * (a' + 1) * 10]
+      $ (+ (mod a 10 * mod b 10)) . (* 10) <$> [a' * b' * 10 .. (a' + 1) * (b' + 1) * 10]
 
 genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Surface
   -> Font -> Color -> AsteroidBelt
