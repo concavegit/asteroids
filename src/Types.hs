@@ -8,6 +8,7 @@ module Types
   , Game (..)
   , gameShip
   , gameBounds
+  , gameAsteroidBelt
   , gameQuit
 
   -- * Controller
@@ -38,6 +39,7 @@ module Types
 
   -- * Asteroid
   , Asteroid (..)
+  , AsteroidBelt
   , genAsteroids
   , asteroidRect
   , asteroidV
@@ -78,11 +80,11 @@ data World = World
   } deriving Show
 
 data Game = Game
-  { _gameShip      :: Ship
-  , _gameBounds    :: V2 Double
-  , _gameMult      :: Mult
-  , _gameAsteroids :: [Either Asteroid Asteroid]
-  , _gameQuit      :: Bool
+  { _gameShip         :: Ship
+  , _gameBounds       :: V2 Double
+  , _gameMult         :: Mult
+  , _gameAsteroidBelt :: AsteroidBelt
+  , _gameQuit         :: Bool
   }
 
 data Ship = Ship
@@ -108,6 +110,8 @@ data Asteroid = Asteroid
   , _asteroidColor  :: Color
   }
 
+type AsteroidBelt = [Either Asteroid Asteroid]
+
 makeLenses ''Controller
 makeLenses ''World
 makeLenses ''Game
@@ -130,7 +134,7 @@ instance Object Game where
   objDraw r w game = do
     rendererDrawColor r $= V4 0 0 0 255
     clear r
-    traverse_ (objDraw r w . either id id) $ game ^. gameAsteroids
+    traverse_ (objDraw r w . either id id) $ game ^. gameAsteroidBelt
     objDraw r w $ game ^. gameShip
     present r
 
@@ -206,10 +210,12 @@ randMultChoices n a b = map (Left . (wrong !!))
     b' = div b 10
     ans = a * b
     wrong = filter (/= ans)
-      $ (+ (mod a 10 * mod b 10)) . (* 100) <$> [a' * b' .. (a' + 1) * (a' + 1)]
+      $ (+ (mod a 10 * mod b 10)) . (* 10) <$> [a' * b' * 10 .. (a' + 1) * (a' + 1) * 10]
 
-genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Surface -> Font -> Color -> [Either Asteroid Asteroid]
-genAsteroids ns w h v sprite font color = (\(i, n) -> either (Left . f i) (Right . f i) $ n) <$> zip [0..] ns
+genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Surface
+  -> Font -> Color -> AsteroidBelt
+genAsteroids ns w h v sprite font color =
+  (\(i, n) -> either (Left . f i) (Right . f i) n) <$> zip [0..] ns
   where
     d@(V2 s _) = uncurry V2 . dup $ h / fromIntegral (length ns)
     f i n = Asteroid

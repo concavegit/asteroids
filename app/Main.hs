@@ -19,7 +19,7 @@ asteroids0 = do
   font <- getDataFileName "res/pro-font-windows.ttf" >>= flip load 40
   sprite <- getDataFileName "res/asteroid.bmp" >>= loadBMP
   mul <- mult0
-  pure $ genAsteroids (mul ^. multChoices) 0 (world ^. worldDims . _y) 0 sprite font (V4 255 255 255 255)
+  pure $ genAsteroids (mul ^. multChoices) 0 (world ^. worldDims . _y) (-20) sprite font (V4 255 255 255 255)
 
 ship0 :: IO Ship
 ship0 =
@@ -37,7 +37,7 @@ world :: World
 world = World
   { _worldScale = 5
   , _worldDims = V2 128 96
-  , _worldFPS = 120}
+  , _worldFPS = 60}
 
 game0 :: IO Game
 game0 = do
@@ -48,7 +48,7 @@ game0 = do
     { _gameBounds = world ^. worldDims
     , _gameShip = ship
     , _gameMult = mul
-    , _gameAsteroids = asters
+    , _gameAsteroidBelt = asters
     , _gameQuit = False
     }
 

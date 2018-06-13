@@ -14,7 +14,9 @@ import           Types
 network :: Game -> SF Controller Game
 network game = proc ctrl -> do
   fall <- shipFlapFallBounded game -< ctrl
-  returnA -< gameQuitF (game & gameShip .~ fall) ctrl
+  asters <- asteroidsForwardAround game -< game
+  returnA -< gameQuitF
+    (execState (gameShip .= fall >> gameAsteroidBelt .= asters) game) ctrl
 
 gameQuitF :: Game -> Controller -> Game
 gameQuitF game = ($ game) . set gameQuit . view controllerQuit
@@ -74,3 +76,28 @@ shipFallBounded = shipInBounds $ shipFall . view gameShip
 shipFlapFallBounded :: Game -> SF Controller Ship
 shipFlapFallBounded game = shipFlap
   (shipFallBounded . ($ game) . set gameShip) $ game ^. gameShip
+
+asteroidBeltMap :: Functor f => (a -> b) -> f (Either a a) -> f (Either b b)
+asteroidBeltMap f = fmap $ either (Left . f) (Right . f)
+
+asteroidsForward :: AsteroidBelt -> SF a AsteroidBelt
+asteroidsForward belt = proc _ -> integral
+  >>^ flip asteroidBeltMap belt . (asteroidRect . rectP . _x .~)
+  . (+ aster ^. asteroidRect . rectP . _x) -< aster ^. asteroidV
+  where aster = either id id $ head belt
+
+asteroidsBackAround' :: (a -> SF b AsteroidBelt) -> a -> SF b (AsteroidBelt, Event AsteroidBelt)
+asteroidsBackAround' f game0 = proc game -> do
+  asters <- f game0 -< game
+  let rect = view asteroidRect . either id id $ head asters
+  past <- edge -< rect ^. rectP . _x + rect ^. rectD . _x < 0
+  returnA -< (asters, asters <$ past)
+
+asteroidsBackAround :: (Game -> SF a AsteroidBelt) -> Game -> SF a AsteroidBelt
+asteroidsBackAround f game0 = switch (asteroidsBackAround' f game0)
+  $ \asters -> asteroidsBackAround f $ game0
+  & gameAsteroidBelt .~ asteroidBeltMap
+  (asteroidRect . rectP . _x .~ game0 ^. gameBounds . _x) asters
+
+asteroidsForwardAround :: Game -> SF Game AsteroidBelt
+asteroidsForwardAround = asteroidsBackAround $ asteroidsForward . view gameAsteroidBelt
