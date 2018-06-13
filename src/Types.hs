@@ -213,8 +213,7 @@ instance Random Mult where
     randMultChoices n a b
 
     where
-      r = uncurry (***)
-        (dup $ round . sqrt . fromIntegral . head . lefts . view multChoices) ms
+      r = ms & both %~ round . sqrt . fromIntegral . head . lefts . view multChoices
 
 rectP :: Lens' (Rectangle a) (Point V2 a)
 rectP f (Rectangle p a) = flip Rectangle a <$> f p
