@@ -26,7 +26,7 @@ multObjAster0 = do
 
   font <- theFont
   sprite <- getDataFileName "res/asteroid.bmp" >>= loadBMP
-  let asts = genAsteroids (mul ^. multChoices) 0 (world ^. worldDims . _y) (-20) sprite font (V4 255 255 255 255)
+  let asts = genAsteroids (mul ^. multChoices) 0 (world ^. worldDims . _y) (-20) 1.1 sprite font (V4 255 255 255 255)
   pure (mulo, asts)
 
 ship0 :: IO Ship

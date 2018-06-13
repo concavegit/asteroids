@@ -51,6 +51,7 @@ module Types
   , genAsteroids
   , asteroidRect
   , asteroidV
+  , asteroidVMult
   , asteroidNum
   , asteroidSprite
   , asteroidFont
@@ -119,6 +120,7 @@ data MultObj = MultObj
 data Asteroid = Asteroid
   { _asteroidRect   :: Rectangle Double
   , _asteroidV      :: Double
+  , _asteroidVMult  :: Double
   , _asteroidNum    :: Int
   , _asteroidSprite :: Surface
   , _asteroidFont   :: Font
@@ -240,15 +242,16 @@ randMultChoices n a b = map (Left . (wrong !!))
     wrong = filter (/= ans)
       $ (+ (mod a 10 * mod b 10)) . (* 10) <$> [a' * b' * 10 .. (a' + 1) * (b' + 1) * 10]
 
-genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Surface
-  -> Font -> Color -> AsteroidBelt
-genAsteroids ns w h v sprite font color =
+genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Double
+  -> Surface -> Font -> Color -> AsteroidBelt
+genAsteroids ns w h v m sprite font color =
   (\(i, n) -> either (Left . f i) (Right . f i) n) <$> zip [0..] ns
   where
     d@(V2 s _) = uncurry V2 . dup $ h / fromIntegral (length ns)
     f i n = Asteroid
       { _asteroidRect = Rectangle (P . V2 w $ fromIntegral i * s) d
       , _asteroidV = v
+      , _asteroidVMult = m
       , _asteroidNum = n
       , _asteroidSprite = sprite
       , _asteroidFont = font
