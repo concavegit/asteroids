@@ -87,7 +87,8 @@ asteroidsForward belt = proc _ -> integral
   . (+ aster ^. asteroidRect . rectP . _x) -< aster ^. asteroidV
   where aster = either id id $ head belt
 
-asteroidsEnd :: (a -> SF b AsteroidBelt) -> a -> SF b (AsteroidBelt, Event AsteroidBelt)
+asteroidsEnd :: (a -> SF b AsteroidBelt) -> a
+  -> SF b (AsteroidBelt, Event AsteroidBelt)
 asteroidsEnd f game0 = proc game -> do
   asters <- f game0 -< game
   let rect = view asteroidRect . either id id $ head asters
@@ -105,4 +106,5 @@ asteroidsBackAround f game0 = switch (asteroidsEnd f game0)
   ) asters
 
 asteroidsForwardAround :: Game -> SF Game AsteroidBelt
-asteroidsForwardAround = asteroidsBackAround $ asteroidsForward . view gameAsteroidBelt
+asteroidsForwardAround = asteroidsBackAround
+  $ asteroidsForward . view gameAsteroidBelt
