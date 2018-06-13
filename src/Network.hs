@@ -106,3 +106,8 @@ asteroidsBackAround f game0 = switch (asteroidsEnd f game0)
 
 asteroidsForwardAround :: Game -> SF Game AsteroidBelt
 asteroidsForwardAround = asteroidsBackAround $ asteroidsForward . view gameAsteroidBelt
+
+rectCollide :: (Num t, Ord t) => Rectangle t -> Rectangle t -> Bool
+rectCollide (Rectangle (P p1) d1) (Rectangle (P p2) d2) = within p2 (p1 + d1)
+  && within (p1 - d2) p2
+  where within = (and .) . liftA2 (<=)
