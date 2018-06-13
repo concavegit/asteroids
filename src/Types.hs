@@ -38,6 +38,7 @@ module Types
 
   -- * Asteroid
   , Asteroid (..)
+  , genAsteroids
   , asteroidRect
   , asteroidV
   , asteroidNum
@@ -54,6 +55,7 @@ import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.State
 import           Data.Either
+import           Data.Foldable
 import           Data.Text              (pack)
 import           Foreign.C.Types
 import           FRP.Yampa
@@ -76,9 +78,11 @@ data World = World
   } deriving Show
 
 data Game = Game
-  { _gameShip   :: Ship
-  , _gameBounds :: V2 Double
-  , _gameQuit   :: Bool
+  { _gameShip      :: Ship
+  , _gameBounds    :: V2 Double
+  , _gameMult      :: Mult
+  , _gameAsteroids :: [Either Asteroid Asteroid]
+  , _gameQuit      :: Bool
   }
 
 data Ship = Ship
@@ -99,10 +103,10 @@ data Asteroid = Asteroid
   { _asteroidRect   :: Rectangle Double
   , _asteroidV      :: Double
   , _asteroidNum    :: Int
-  , _asteroidSprite :: FilePath
+  , _asteroidSprite :: Surface
   , _asteroidFont   :: Font
   , _asteroidColor  :: Color
-  } deriving Show
+  }
 
 makeLenses ''Controller
 makeLenses ''World
@@ -126,6 +130,7 @@ instance Object Game where
   objDraw r w game = do
     rendererDrawColor r $= V4 0 0 0 255
     clear r
+    traverse_ (objDraw r w . either id id) $ game ^. gameAsteroids
     objDraw r w $ game ^. gameShip
     present r
 
@@ -137,8 +142,7 @@ instance Object Ship where
 instance Object Asteroid where
   objRect = view asteroidRect
   objDraw r w asteroid = do
-    sprite <- loadBMP (asteroid ^. asteroidSprite)
-      >>= createTextureFromSurface r
+    sprite <- createTextureFromSurface r $ asteroid ^. asteroidSprite
     copy r sprite Nothing (pure rect)
 
     num <- solid (asteroid ^. asteroidFont) (asteroid ^. asteroidColor) text
@@ -191,10 +195,10 @@ randR :: (RandomGen s, Random a) => (a, a) -> State s a
 randR = state . randomR
 
 randMultChoices :: RandomGen s => Int -> Int -> Int -> State s Mult
-randMultChoices n a b = map (Right . (wrong !!))
+randMultChoices n a b = map (Left . (wrong !!))
   <$> replicateM (n - 1) (randR (0, length wrong - 1))
   >>= flip fmap (randR (0, n - 1))
-  . ((Mult a b . ((. (Left ans:)) . (++) <$> uncurry take <*> uncurry drop)) .)
+  . ((Mult a b . ((. (Right ans:)) . (++) <$> uncurry take <*> uncurry drop)) .)
   . flip (,)
 
   where
@@ -203,3 +207,16 @@ randMultChoices n a b = map (Right . (wrong !!))
     ans = a * b
     wrong = filter (/= ans)
       $ (+ (mod a 10 * mod b 10)) . (* 100) <$> [a' * b' .. (a' + 1) * (a' + 1)]
+
+genAsteroids :: [Either Int Int] -> Double -> Double -> Double -> Surface -> Font -> Color -> [Either Asteroid Asteroid]
+genAsteroids ns w h v sprite font color = (\(i, n) -> either (Left . f i) (Right . f i) $ n) <$> zip [0..] ns
+  where
+    d@(V2 s _) = uncurry V2 . dup $ h / fromIntegral (length ns)
+    f i n = Asteroid
+      { _asteroidRect = Rectangle (P . V2 w $ fromIntegral i * s) d
+      , _asteroidV = v
+      , _asteroidNum = n
+      , _asteroidSprite = sprite
+      , _asteroidFont = font
+      , _asteroidColor = color
+      }
