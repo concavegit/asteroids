@@ -15,7 +15,7 @@ before_script:
 
 test:
   script:
-    - stack test
+    - stack test --coverage
 
 build:
   script:
