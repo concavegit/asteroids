@@ -1,0 +1,20 @@
+image: haskell
+
+variables:
+  STACK_ROOT: "${CI_PROJECT_DIR}/.stack"
+
+cache:
+  pachs:
+    - .stack-work
+    - .stack
+
+before_script:
+  - stack setup
+
+test:
+  script:
+    - stack test
+
+build:
+  script:
+    - stack build
