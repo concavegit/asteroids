@@ -1,2 +1,21 @@
+*Currently incomplete. I will push a tagged release when ready*
+
 * Asteroids
 Flappy Bird with math.
+
+[[file:sample.png]]
+
+The goal is to fly through the asteroid with the answer to the presented multiplication problem.
+
+** Installation
+1. Have sdl2 and sdl2-tff installed. For Ubuntu:
+   =sudo apt install libsdl2-dev sdl2-ttf-dev=
+  
+2. Install stack. For Ubuntu:
+   =sudo apt install haskell-stack=
+  
+3. Clone the project: =git clone https://gitlab.com/concavegit/asteroids.git=
+
+4. Navigate to the project: =cd asteroids.git=
+
+5. Install to =~/.local/bin=: =stack install=
