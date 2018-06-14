@@ -10,7 +10,7 @@ cache:
 
 before_script:
   - apt-get update
-  - apt-get install libsdl2-dev libsdl2-ttf-dev
+  - apt-get install -y libsdl2-dev libsdl2-ttf-dev
   - stack setup
 
 test:
