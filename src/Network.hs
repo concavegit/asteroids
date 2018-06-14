@@ -8,25 +8,23 @@ import           Control.Applicative
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
+import           Data.Either
 import           FRP.Yampa
+import           Network.Extra
 import           SDL                 hiding (Event)
 import           Types
 
 network :: Game -> SF Controller Game
 network game = proc ctrl -> do
-  fall <- shipFlapFallBounded game -< ctrl
-  asters <- asteroidsForwardAround game -< game
-  returnA -< gameQuitF
-    (execState (gameShip .= fall >> gameAsteroidBelt .= asters) game) ctrl
-
-gameQuitF :: Game -> Controller -> Game
-gameQuitF game = ($ game) . set gameQuit . view controllerQuit
+  (fall, asters) <- shipAsteroid game -< (ctrl, ())
+  returnA -< gameQuitF ctrl
+    (execState (gameShip .= fall >> gameAsteroidBelt .= asters) game)
 
 shipFall :: Ship -> SF a Ship
 shipFall ship = proc _ -> do
   rec
     let a = g - v * g / vT
-    v <- (+ ship ^. shipV) ^<< integral -< a
+    v <- integral >>^ (+ ship ^. shipV) -< a
     y <- integral >>^ (+ ship ^. shipRect . rectP . _y) -< v
   returnA -< execState (shipV .= y >> shipRect . rectP . _y .= y) ship
 
@@ -35,29 +33,22 @@ shipFall ship = proc _ -> do
     vT = ship ^. shipVT
 
 shipFlap' :: (a -> SF Controller b) -> a -> SF Controller (b, Event b)
-shipFlap' f ship0 = proc ctrl -> do
-  ship <- f ship0 -< ctrl
-  control <- edge -< ctrl ^. controllerFlap
-  returnA -< (ship, ship <$ control)
+shipFlap' f ship0 = f ship0 &&& (view controllerFlap ^>> edge)
+  >>^ \(a, b) -> (a, a <$ b)
 
 shipFlap :: (Ship -> SF Controller Ship) -> Ship -> SF Controller Ship
-shipFlap f ship0 = switch (shipFlap' f ship0)
-  $ \ship -> shipFlap f (ship & shipV .~ -ship ^. shipVT)
+shipFlap = switch1 shipFlap' $ (&) <*> set shipV . negate . view shipVT
 
 stopShip' :: Double -> Ordering -> (a -> SF b Ship) -> a
   -> SF b (Ship, Event Ship)
-stopShip' bound comp f ship0 = proc ship -> do
-  ship' <- f ship0 -< ship
-  hit <- edge -< compare (ship' ^. shipRect . rectP . _y) bound == comp
-  returnA -< (ship', ship' <$ hit)
+stopShip' bound comp
+  = ((>>> edgeCond
+      ((== comp) . flip compare bound . view (shipRect . rectP . _y))
+     ) .)
 
 stopShip :: Double -> Ordering -> (Ship -> SF a Ship) -> Ship -> SF a Ship
-stopShip bound comp f ship0 = switch (stopShip' bound comp f ship0)
-  $ \ship -> stopShip bound comp f
-  (execState
-   ( shipRect . rectP . _y .= bound
-   >> shipV .= 0
-   ) ship)
+stopShip bound comp = switch1 (stopShip' bound comp)
+  $ execState ( shipRect . rectP . _y .= bound >> shipV .= 0)
 
 shipBottom :: (Game -> SF a Ship) -> Game -> SF a Ship
 shipBottom f game = stopShip
@@ -78,9 +69,6 @@ shipFlapFallBounded :: Game -> SF Controller Ship
 shipFlapFallBounded game = shipFlap
   (shipFallBounded . ($ game) . set gameShip) $ game ^. gameShip
 
-eitherFmap :: Functor f => (a -> b) -> f (Either a a) -> f (Either b b)
-eitherFmap = fmap . liftA2 either (Left .) (Right .)
-
 asteroidsForward :: AsteroidBelt -> SF a AsteroidBelt
 asteroidsForward belt = proc _ -> integral
   >>^ flip eitherFmap belt . (asteroidRect . rectP . _x .~)
@@ -89,22 +77,30 @@ asteroidsForward belt = proc _ -> integral
 
 asteroidsEnd :: (a -> SF b AsteroidBelt) -> a
   -> SF b (AsteroidBelt, Event AsteroidBelt)
-asteroidsEnd f game0 = proc game -> do
-  asters <- f game0 -< game
-  let rect = view asteroidRect . either id id $ head asters
-  past <- edge -< rect ^. rectP . _x + rect ^. rectD . _x < 0
-  returnA -< (asters, asters <$ past)
+asteroidsEnd
+  = ((>>> edgeCond
+      ((((< 0) .) . (+) <$> view (rectP . _x) <*> view (rectD . _x))
+       . view asteroidRect . either id id . head)) .)
 
-asteroidsBackAround :: (Game -> SF a AsteroidBelt) -> Game -> SF a AsteroidBelt
-asteroidsBackAround f game0 = switch (asteroidsEnd f game0)
-  $ \asters -> asteroidsBackAround f $ game0
-  & gameAsteroidBelt .~ eitherFmap
-  (execState
-   ( asteroidRect . rectP . _x .= game0 ^. gameBounds . _x
-   >> asteroidV %= (* either id id (head asters) ^. asteroidVMult)
-   )
-  ) asters
+asteroidsLoop :: (Game -> SF a AsteroidBelt) -> Game -> SF a AsteroidBelt
+asteroidsLoop f game0 = switch1 asteroidsEnd
+  (\asters -> game0
+    & gameAsteroidBelt .~ eitherFmap
+    (execState
+     ( asteroidRect . rectP . _x .= game0 ^. gameBounds . _x
+       >> asteroidV *= either id id (head asters) ^. asteroidVMult
+     )) asters
+  ) f game0
 
-asteroidsForwardAround :: Game -> SF Game AsteroidBelt
-asteroidsForwardAround = asteroidsBackAround
-  $ asteroidsForward . view gameAsteroidBelt
+-- asteroidsForwardLoop :: Game -> SF Game AsteroidBelt
+asteroidsForwardLoop :: Game -> SF a AsteroidBelt
+asteroidsForwardLoop = asteroidsLoop $ asteroidsForward . view gameAsteroidBelt
+
+shipAsteroid :: Game -> SF (Controller, a) (Ship, AsteroidBelt)
+shipAsteroid = liftA2 (***) shipFlapFallBounded asteroidsForwardLoop
+
+shipCollideWrong :: SF (Ship, [Either Asteroid b])
+  ((Ship, [Either Asteroid b]), Event (Ship, [Either Asteroid b]))
+shipCollideWrong = edgeCond
+  $ or . uncurry fmap
+  . (rectCollide . view shipRect *** map (view asteroidRect) . lefts)
