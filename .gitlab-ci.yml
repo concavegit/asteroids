@@ -14,9 +14,11 @@ before_script:
   - stack setup
 
 test:
+  stage: test
   script:
     - stack test --coverage
 
 build:
+  stage: build
   script:
     - stack build
