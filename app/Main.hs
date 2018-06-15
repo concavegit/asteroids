@@ -56,6 +56,8 @@ game0 = do
     , _gameShip = ship
     , _gameMultObj = mul
     , _gameAsteroidBelt = asters
+    , _gamePoints = 0
+    , _gameOver = False
     , _gameQuit = False
     }
 

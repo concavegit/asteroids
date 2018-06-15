@@ -10,6 +10,8 @@ module Types
   , gameBounds
   , gameMultObj
   , gameAsteroidBelt
+  , gamePoints
+  , gameOver
   , gameQuit
 
   -- * Controller
@@ -93,6 +95,8 @@ data Game = Game
   , _gameBounds       :: V2 Double
   , _gameMultObj      :: MultObj
   , _gameAsteroidBelt :: AsteroidBelt
+  , _gamePoints       :: Int
+  , _gameOver         :: Bool
   , _gameQuit         :: Bool
   }
 
