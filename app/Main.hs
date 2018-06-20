@@ -57,12 +57,15 @@ game0 :: IO Game
 game0 = do
   ship <- ship0
   (mul, asters) <- multObjAster0
+  f <- theFont
   pure Game
     { _gameBounds = world ^. worldDims
     , _gameShip = ship
     , _gameMultObj = mul
+    , _gameFont = f
     , _gameAsteroidBelt = asters
     , _gamePoints = 0
+    , _gameFontColor = V4 255 255 255 255
     , _gameOver = False
     , _gameQuit = False
     }

@@ -12,7 +12,9 @@ module Types
   , gameAsteroidBelt
   , gamePoints
   , gameOver
+  , gameFont
   , gameQuit
+  , gameFontColor
 
   -- * Controller
   , Controller (..)
@@ -96,6 +98,8 @@ data Game = Game
   , _gameMultObj      :: MultObj
   , _gameAsteroidBelt :: AsteroidBelt
   , _gamePoints       :: Int
+  , _gameFont         :: Font
+  , _gameFontColor    :: Color
   , _gameOver         :: Bool
   , _gameQuit         :: Bool
   }
@@ -156,6 +160,9 @@ instance Object Game where
   objDraw r w game = do
     rendererDrawColor r $= V4 0 0 0 255
     clear r
+    score <- solid (game ^. gameFont) (game ^. gameFontColor) (pack . show $ game ^. gamePoints) >>= createTextureFromSurface r
+    dest <- Rectangle (P $ V2 40 0) . fmap fromIntegral . uncurry V2 <$> size (game ^. gameFont) (pack . show $ game ^. gamePoints)
+    copy r score Nothing $ Just dest
     traverse_ (objDraw r w . either id id) $ game ^. gameAsteroidBelt
     objDraw r w $ game ^. gameShip
     objDraw r w $ game ^. gameMultObj
