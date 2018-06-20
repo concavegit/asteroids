@@ -26,7 +26,7 @@ multObjAster0 = do
 
   sprite <- getDataFileName "res/asteroid.bmp" >>= loadBMP
   let asts = genAsteroids (mul ^. multChoices) (world ^. worldDims . _y) Asteroid
-        { _asteroidRect = Rectangle (P $ V2 0 0) undefined
+        { _asteroidRect = Rectangle (P $ V2 60 0) undefined
         , _asteroidV = -20
         , _asteroidVMult = 1.1
         , _asteroidSprite = sprite

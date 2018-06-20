@@ -16,9 +16,10 @@ import           Types
 
 network :: Game -> SF Controller Game
 network game = proc ctrl -> do
-  (fall, asters) <- shipAsteroid game -< (ctrl, ())
-  returnA -< gameQuitF ctrl
-    (execState (gameShip .= fall >> gameAsteroidBelt .= asters) game)
+  -- t1 <- shipAsteroid game -< (ctrl, ())
+  g <- sas game -< (ctrl, ())
+  -- (fall, asters) <- shipCollide  -< t1
+  returnA -< gameQuitF ctrl g
 
 shipFall :: Ship -> SF a Ship
 shipFall ship = proc _ -> do
@@ -92,15 +93,49 @@ asteroidsLoop f game0 = switch1 asteroidsEnd
      )) asters
   ) f game0
 
--- asteroidsForwardLoop :: Game -> SF Game AsteroidBelt
+incPoints f game0 = proc a -> do
+  (_, asterE) <- asteroidsEnd f game0 -< a
+  asters <- asteroidsLoop f game0 -< a
+  pts <- accumHold 0 -< (+ 1) <$ asterE
+  returnA -< execState (gameAsteroidBelt .= asters >> gamePoints .= pts) game0
+
 asteroidsForwardLoop :: Game -> SF a AsteroidBelt
 asteroidsForwardLoop = asteroidsLoop $ asteroidsForward . view gameAsteroidBelt
 
-shipAsteroid :: Game -> SF (Controller, a) (Ship, AsteroidBelt)
-shipAsteroid = liftA2 (***) shipFlapFallBounded asteroidsForwardLoop
+shipAsteroid :: Game -> SF (Controller, a) Game
+shipAsteroid game0 = proc (ctrl, a) -> do
+   ship <- shipFlapFallBounded game0 -< ctrl
+   asteroidGame <- incPoints (asteroidsForward . view gameAsteroidBelt) game0  -< a
+   returnA -< (gameShip .~ ship) asteroidGame
 
-shipCollideWrong :: SF (Ship, [Either Asteroid b])
-  ((Ship, [Either Asteroid b]), Event (Ship, [Either Asteroid b]))
-shipCollideWrong = edgeCond
-  $ or . uncurry fmap
-  . (rectCollide . view shipRect *** map (view asteroidRect) . lefts)
+shipCollideWrong :: SF (Ship, [Either Asteroid b]) (Event ())
+shipCollideWrong = or . uncurry fmap
+  . (rectCollide . view shipRect *** map (view asteroidRect) . lefts) ^>> edge
+
+-- shipAsteroidStop' :: (t -> SF (a, b1) (Ship, [Either Asteroid b2])) -> t
+--   -> SF (a, b1)
+  -- ((Ship, [Either Asteroid b2]), Event (Ship, [Either Asteroid b2]))
+shipAsteroidStop' f g0 = proc c@(ctrl, a) -> do
+  g <- f g0 -< (ctrl, a)
+  e <- shipCollideWrong -< (g ^. gameShip, g ^. gameAsteroidBelt)
+  returnA -< (g, g <$ e)
+
+-- shipAsteroidStop :: (Game -> SF (a, b) (Ship, [Either Asteroid Asteroid]))
+--   -> Game -> SF (a, b) (Ship, [Either Asteroid Asteroid])
+shipAsteroidStop f g0 = switch (shipAsteroidStop' f g0) $ \g ->
+  shipAsteroidStop f $ (execState (gameShip . shipV .= 0 >> gameShip . shipG .= 0 >> gameAsteroidBelt .= eitherFmap (asteroidV .~ 0) (g ^. gameAsteroidBelt))) g
+  -- . (\(s, a) -> execState (gameShip .= s >> gameAsteroidBelt .= a) g0)
+  -- . (execState (shipV .= 0 >> shipG .= 0 >> shipVT .= 0)
+     -- *** eitherFmap (asteroidV .~ 0))
+
+-- sas :: Game -> SF (Controller, b) (Ship, [Either Asteroid Asteroid])
+sas g0 = shipAsteroidStop shipAsteroid g0
+
+-- shipAsteroidStop = switch
+
+  -- proc (s, a) -> do
+  -- ship <- constant >>> (switch (shipCollideWrong)) -< s
+  -- returnA -< a
+
+-- -- shipCollide :: SF (Ship, AsteroidBelt) (Ship, AsteroidBelt)
+-- -- shipCollide = switch shipCollideWrong constant
