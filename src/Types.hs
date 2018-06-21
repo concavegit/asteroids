@@ -10,11 +10,9 @@ module Types
   , gameBounds
   , gameMultObj
   , gameAsteroidBelt
-  , gamePoints
   , gameOver
-  , gameFont
   , gameQuit
-  , gameFontColor
+  , gameScore
 
   -- * Controller
   , Controller (..)
@@ -30,11 +28,10 @@ module Types
 
   -- * Ship
   , Ship (..)
-  , shipRect
+  , shipSprite
+  , shipG
   , shipV
   , shipVT
-  , shipG
-  , shipSprite
 
   -- * Mult
   , Mult (..)
@@ -52,14 +49,13 @@ module Types
   -- * Asteroid
   , Asteroid (..)
   , AsteroidBelt
-  , genAsteroids
-  , asteroidRect
+  , asteroidSprite
   , asteroidV
   , asteroidVMult
   , asteroidNum
-  , asteroidSprite
   , asteroidFont
   , asteroidColor
+  , genAsteroids
 
   -- * Extra Lenses
   , rectP
@@ -71,7 +67,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.State
 import           Data.Either
 import           Data.Foldable
-import           Data.Text              (pack)
+import           Data.Text              (Text, pack)
 import           Foreign.C.Types
 import           FRP.Yampa
 import           SDL
@@ -97,19 +93,16 @@ data Game = Game
   , _gameBounds       :: V2 Double
   , _gameMultObj      :: MultObj
   , _gameAsteroidBelt :: AsteroidBelt
-  , _gamePoints       :: Int
-  , _gameFont         :: Font
-  , _gameFontColor    :: Color
+  , _gameScore        :: Score
   , _gameOver         :: Bool
   , _gameQuit         :: Bool
   }
 
 data Ship = Ship
-  { _shipRect   :: Rectangle Double
+  { _shipSprite :: Sprite
   , _shipV      :: Double
   , _shipVT     :: Double
   , _shipG      :: Double
-  , _shipSprite :: Surface
   }
 
 data Mult = Mult
@@ -126,13 +119,31 @@ data MultObj = MultObj
   }
 
 data Asteroid = Asteroid
-  { _asteroidRect   :: Rectangle Double
+  { _asteroidSprite :: Sprite
   , _asteroidV      :: Double
   , _asteroidVMult  :: Double
   , _asteroidNum    :: Int
-  , _asteroidSprite :: Surface
   , _asteroidFont   :: Font
   , _asteroidColor  :: Color
+  }
+
+data Score = Score
+  { _score      :: Int
+  , _scorePoint :: Point V2 Double
+  , _scoreFont  :: Font
+  , _scoreColor :: Color
+  }
+
+data Sprite = Sprite
+  { _spriteRect :: Rectangle Double
+  , _sprite     :: Surface
+  }
+
+data TextBox = TextBox
+  { _textBoxText  :: Text
+  , _textBoxFont  :: Font
+  , _textBoxColor :: Color
+  , _textBoxPoint :: Point V2 Double
   }
 
 type AsteroidBelt = [Either Asteroid Asteroid]
@@ -144,6 +155,9 @@ makeLenses ''Ship
 makeLenses ''Mult
 makeLenses ''MultObj
 makeLenses ''Asteroid
+makeLenses ''Score
+makeLenses ''Sprite
+makeLenses ''TextBox
 
 class Object o where
   objRect :: o -> Rectangle Double
@@ -153,56 +167,69 @@ class Object o where
 
   objDraw :: MonadIO m => Renderer -> World -> o -> m ()
   objDraw r w = (rendererDrawColor r $= V4 255 255 0 255 >>)
-    . drawRect r . Just . objPRect w
+    . drawRect r . pure . objPRect w
+
+instance Object Sprite where
+  objRect = view spriteRect
+  objDraw r w o = createTextureFromSurface r (o ^. sprite)
+    >>= \t -> copy r t mzero (pure $ objPRect w o)
+
+instance Object TextBox where
+  objRect = flip Rectangle (V2 0 0) . view textBoxPoint
+  objDraw r w o = do
+    txt <- solid (o ^. textBoxFont) (o ^. textBoxColor) (o ^. textBoxText) >>= createTextureFromSurface r
+    dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2 <$> size (o ^. textBoxFont) (o ^. textBoxText)
+    copy r txt mzero $ pure dest
 
 instance Object Game where
   objRect = Rectangle (P $ V2 0 0) . view gameBounds
   objDraw r w game = do
     rendererDrawColor r $= V4 0 0 0 255
     clear r
-    score <- solid (game ^. gameFont) (game ^. gameFontColor) (pack . show $ game ^. gamePoints) >>= createTextureFromSurface r
-    dest <- Rectangle (P $ V2 40 0) . fmap fromIntegral . uncurry V2 <$> size (game ^. gameFont) (pack . show $ game ^. gamePoints)
-    copy r score Nothing $ Just dest
     traverse_ (objDraw r w . either id id) $ game ^. gameAsteroidBelt
     objDraw r w $ game ^. gameShip
     objDraw r w $ game ^. gameMultObj
     present r
 
 instance Object Ship where
-  objRect = view shipRect
-  objDraw r w ship = createTextureFromSurface r (ship ^. shipSprite)
-    >>= \t -> copy r t Nothing (pure $ objPRect w ship)
+  objRect = objRect . view shipSprite
+  objDraw r = (. view shipSprite) . objDraw r
 
 instance Object MultObj where
   objRect o = Rectangle (o ^. multObjPos) $ V2 0 0
-  objDraw r w o = do
-    txt <- solid (o ^. multObjFont) (o ^. multObjColor) prompt >>= createTextureFromSurface r
-    dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2 <$> size (o ^. multObjFont) prompt
-    copy r txt Nothing $ Just dest
-
-    where
-      mul = o ^. multObjMult
-      prompt = pack $ (++) . (++ " × ") <$> show . view multA <*> show . view multB $ mul
+  objDraw r w o = objDraw r w TextBox
+    { _textBoxText = pack
+      $ (++) . (++ " × ") <$> show . view multA <*> show . view multB
+      $ o ^. multObjMult
+    , _textBoxFont = o ^. multObjFont
+    , _textBoxColor = o ^. multObjColor
+    , _textBoxPoint = o ^. multObjPos}
 
 instance Object Asteroid where
-  objRect = view asteroidRect
+  objRect = objRect . view asteroidSprite
   objDraw r w asteroid = do
-    sprite <- createTextureFromSurface r $ asteroid ^. asteroidSprite
-    copy r sprite Nothing (pure rect)
-
-    num <- solid (asteroid ^. asteroidFont) (asteroid ^. asteroidColor) text
-      >>= createTextureFromSurface r
-    numD <- fmap fromIntegral . uncurry V2
+    objDraw r w (asteroid ^. asteroidSprite)
+    dims <- uncurry V2 . over both ((/ w ^. worldScale) . fromIntegral)
       <$> size (asteroid ^. asteroidFont) text
-    copy r num Nothing . Just
-      $ Rectangle
-      (rect ^. rectP
-       + (P $ round . (/ 2) . fromIntegral <$> (rect ^. rectD - numD))
-      ) numD
+    objDraw r w TextBox
+      { _textBoxText = text
+      , _textBoxColor = asteroid ^. asteroidColor
+      , _textBoxFont = asteroid ^. asteroidFont
+      , _textBoxPoint = rect ^. rectP + (P $ (/ 2) <$> (rect ^. rectD - dims))
+      }
 
       where
         text = pack . show $ asteroid ^. asteroidNum
-        rect = objPRect w asteroid
+        rect = objRect asteroid
+
+instance Object Score where
+  objRect = flip Rectangle (V2 0 0) . view scorePoint
+  objDraw r w o = objDraw r w TextBox
+    { _textBoxText = pack . show $ o ^. score
+    , _textBoxColor = o ^. scoreColor
+    , _textBoxFont = o ^. scoreFont
+    , _textBoxPoint = o ^. scorePoint
+    }
 
 instance Random Mult where
 
@@ -258,7 +285,7 @@ genAsteroids es h a =
   where
     d@(V2 s _) = uncurry V2 . dup $ h / fromIntegral (length es)
     f i n = execState
-      ( asteroidRect . rectP . _y .= i * s
-      >> asteroidRect . rectD .= d
+      ( asteroidSprite . spriteRect . rectP . _y .= i * s
+      >> asteroidSprite . spriteRect . rectD .= d
       >> asteroidNum .= n
       ) a
