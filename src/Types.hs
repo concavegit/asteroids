@@ -57,6 +57,18 @@ module Types
   , asteroidColor
   , genAsteroids
 
+  -- * Score
+  , Score (..)
+  , score
+  , scorePoint
+  , scoreFont
+  , scoreColor
+
+  -- * Sprite
+  , Sprite (..)
+  , sprite
+  , spriteRect
+
   -- * Extra Lenses
   , rectP
   , rectD
