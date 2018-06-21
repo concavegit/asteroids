@@ -24,12 +24,13 @@ multObjAster0 = do
         , _multObjColor = V4 0 0 255 255
         }
 
-  sprite <- getDataFileName "res/asteroid.bmp" >>= loadBMP
+  sprite' <- getDataFileName "res/asteroid.bmp" >>= loadBMP
   let asts = genAsteroids (mul ^. multChoices) (world ^. worldDims . _y) Asteroid
-        { _asteroidRect = Rectangle (P $ V2 60 0) undefined
+        { _asteroidSprite = Sprite
+          { _spriteRect = Rectangle (P $ V2 60 0) undefined
+          , _sprite = sprite'}
         , _asteroidV = -20
         , _asteroidVMult = 1.1
-        , _asteroidSprite = sprite
         , _asteroidFont = f
         , _asteroidColor = V4 255 255 255 255
         }
@@ -38,13 +39,15 @@ multObjAster0 = do
 ship0 :: IO Ship
 ship0 =
   do
-    sprite <- getDataFileName "res/spaceship.bmp" >>= loadBMP
+    sprite' <- getDataFileName "res/spaceship.bmp" >>= loadBMP
     pure Ship
-      { _shipRect = Rectangle (P $ V2 0 0) (V2 20 12)
+      { _shipSprite = Sprite
+        { _spriteRect = Rectangle (P $ V2 0 0) (V2 20 12)
+        , _sprite = sprite'
+        }
       , _shipV = 0
       , _shipVT = 40
       , _shipG = 80
-      , _shipSprite = sprite
       }
 
 world :: World
@@ -60,12 +63,15 @@ game0 = do
   f <- theFont
   pure Game
     { _gameBounds = world ^. worldDims
+    , _gameScore = Score
+      { _scoreFont = f
+      , _scoreColor = V4 255 255 255 255
+      , _score = 999
+      , _scorePoint = P $ V2 (world ^. worldDims . _x - 20) 0
+      }
     , _gameShip = ship
     , _gameMultObj = mul
-    , _gameFont = f
     , _gameAsteroidBelt = asters
-    , _gamePoints = 0
-    , _gameFontColor = V4 255 255 255 255
     , _gameOver = False
     , _gameQuit = False
     }

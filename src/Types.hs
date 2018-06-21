@@ -201,6 +201,7 @@ instance Object Game where
     traverse_ (objDraw r w . either id id) $ game ^. gameAsteroidBelt
     objDraw r w $ game ^. gameShip
     objDraw r w $ game ^. gameMultObj
+    objDraw r w $ game ^. gameScore
     present r
 
 instance Object Ship where
