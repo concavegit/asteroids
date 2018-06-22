@@ -66,7 +66,7 @@ game0 = do
     , _gameScore = Score
       { _scoreFont = f
       , _scoreColor = V4 255 255 255 255
-      , _score = 999
+      , _score = 0
       , _scorePoint = P $ V2 (world ^. worldDims . _x - 20) 0
       }
     , _gameShip = ship
