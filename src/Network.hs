@@ -13,8 +13,8 @@ import           Network.Extra
 import           SDL                 hiding (Event)
 import           Types
 
-network :: Game -> SF Controller Game
-network game = proc ctrl -> do
+network :: RandomGen g => g -> Game -> SF Controller Game
+network gen game = proc ctrl -> do
   flapped <- shipBounded game -< ctrl
   (looped, loopE) <- asteroidBeltLoop game -< ()
 

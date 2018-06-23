@@ -11,6 +11,7 @@ module Types
   , gameMultObj
   , gameAsteroidBelt
   , gameOver
+  , gameMultRange
   , gameQuit
   , gameScore
 
@@ -105,6 +106,7 @@ data Game = Game
   , _gameBounds       :: V2 Double
   , _gameMultObj      :: MultObj
   , _gameAsteroidBelt :: AsteroidBelt
+  , _gameMultRange    :: (Mult, Mult)
   , _gameScore        :: Score
   , _gameOver         :: Bool
   , _gameQuit         :: Bool

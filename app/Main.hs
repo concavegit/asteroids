@@ -69,6 +69,10 @@ game0 = do
       , _score = 0
       , _scorePoint = P $ V2 (world ^. worldDims . _x - 20) 0
       }
+    , _gameMultRange =
+      ( Mult {_multChoices = replicate 4 $ Right 0}
+      , Mult {_multChoices = replicate 4 $ Right 9801}
+      )
     , _gameShip = ship
     , _gameMultObj = mul
     , _gameAsteroidBelt = asters

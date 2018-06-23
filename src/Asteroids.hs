@@ -12,6 +12,7 @@ import           Input
 import           Network
 import           SDL
 import qualified SDL.Font               as Font
+import           System.Random
 import           Types
 
 asteroids :: World -> Game -> IO ()
@@ -23,12 +24,13 @@ asteroids world game = do
     {windowInitialSize = round . (world ^. worldScale *) <$> world ^. worldDims}
   r <- createRenderer w (-1) defaultRenderer
   tr <- newIORef 0
+  g <- getStdGen
 
   reactimate
     (pure controller)
     (\_ -> (. Just) . (,) <$> senseDT tr <*> senseController controller)
     (\_ -> render r world)
-    (network game)
+    (network g game)
 
   Font.quit
   quit
