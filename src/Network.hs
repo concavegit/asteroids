@@ -27,19 +27,18 @@ network gen game = proc ctrl -> do
     mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ asteroidBeltEnd
     let asteroidBelt' = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head asters
     asters <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< asteroidBelt'
+    e <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
+      . either id id . head $ game ^. gameAsteroidBelt
+      -< game & gameAsteroidBelt .~ asters
+    x <- hold False -< True <$ e
 
-    score <- accum 0 -< (+1) <$ asteroidBeltEnd
+    score' <- accumHold 0 -< (+1) <$ asteroidBeltEnd
 
   returnA -< execState
     ( gameAsteroidBelt .= asters
-    >> gameQuit .= ctrl ^. controllerQuit
+    >> gameQuit .= x
+    >> gameScore . score .= score'
     ) game
-
--- asteroidBeltForward :: AsteroidBelt -> SF a AsteroidBelt
--- asteroidBeltForward = (aster ^. asteroidV) >>> integral
---   >>^ flip eitherFmap belt . (asteroidSprite . spriteRect . rectP . _x .~)
---   . (+ aster ^. asteroidSprite . spriteRect . rectP . _x)
---   where aster = either id id $ head belt
 
 asteroidBeltForward :: AsteroidBelt -> SF AsteroidBelt AsteroidBelt
 asteroidBeltForward belt0 = proc belt -> do
@@ -48,7 +47,10 @@ asteroidBeltForward belt0 = proc belt -> do
     -< either id id (head belt) ^. asteroidV
   returnA -< eitherFmap move belt
 
--- asteroidBeltEdge :: Game -> SF Game (Event Game, Event Game)
--- asteroidBeltEdge g0 = proc g -> do
---   e <- edge -< (<= 0) . ((+) <$> (^. rectP . _x) <*> (^. rectD . _x)) . (^. asteroidSprite . spriteRect) . either id id . head $ g ^. gameAsteroidBelt
---   returnA -< dup $ g <$ e
+gameBoundTraversed :: Double -> SF Game (Event Game, Event Game)
+gameBoundTraversed d = proc g -> do
+  x <- integral >>> (<= 0) . (+ d) ^>> edge -< view asteroidV . either id id . head $ g ^. gameAsteroidBelt
+  returnA -< dup $ g <$ x
+
+asteroidBeltAroundE :: Double -> SF Game (Event Game)
+asteroidBeltAroundE d = switch (gameBoundTraversed d) $ asteroidBeltAroundE . (^. gameBounds . _x)
