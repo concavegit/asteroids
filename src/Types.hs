@@ -73,6 +73,7 @@ module Types
   -- * Extra Lenses
   , rectP
   , rectD
+  , asteroidBeltHead
   ) where
 
 import           Control.Lens
@@ -279,6 +280,10 @@ rand = state random
 
 randR :: (RandomGen s, Random a) => (a, a) -> State s a
 randR = state . randomR
+
+asteroidBeltHead :: Lens' AsteroidBelt Asteroid
+asteroidBeltHead f (a:ax) = (:ax) <$> g
+  where g = either (fmap Left . f) (fmap Right . f) a
 
 randMultChoices :: RandomGen s => Int -> Int -> Int -> State s Mult
 randMultChoices n a b = map (Left . (wrong !!))
