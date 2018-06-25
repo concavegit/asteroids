@@ -19,24 +19,23 @@ network gen game = proc ctrl -> do
     multGen <- noiseR (game ^. gameMultRange) gen -< ()
 
     asteroidBeltEnd <- edge -< (<= 0)
-      . ((+) <$> (^. asteroidSprite . spriteRect . rectP . _x)
-         <*> (^. asteroidSprite . spriteRect . rectD . _x))
-      . either id id . head
-      $ game ^. gameAsteroidBelt
+      . ((+) <$> (^. rectP . _x) <*> (^. rectD . _x))
+      . (^. asteroidSprite . spriteRect) . either id id . head
+      $ asters
 
     mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ asteroidBeltEnd
     let asteroidBelt' = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head asters
     asters <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< asteroidBelt'
-    e <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
-      . either id id . head $ game ^. gameAsteroidBelt
-      -< game & gameAsteroidBelt .~ asters
-    x <- hold False -< True <$ e
+    -- e <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
+    --   . either id id . head $ game ^. gameAsteroidBelt
+    --   -< game & gameAsteroidBelt .~ asters
+    -- x <- hold False -< True <$ e
 
     score' <- accumHold 0 -< (+1) <$ asteroidBeltEnd
 
   returnA -< execState
     ( gameAsteroidBelt .= asters
-    >> gameQuit .= x
+    >> gameQuit .= ctrl ^. controllerQuit
     >> gameScore . score .= score'
     ) game
 
