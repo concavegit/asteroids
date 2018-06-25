@@ -7,7 +7,6 @@ module Network
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
-import           Data.Either
 import           FRP.Yampa
 import           Network.Extra
 import           SDL                 hiding (Event)
@@ -15,19 +14,72 @@ import           Types
 
 network :: RandomGen g => g -> Game -> SF Controller Game
 network gen game = proc ctrl -> do
-  flapped <- shipBounded game -< ctrl
-  (looped, loopE) <- asteroidBeltLoop game -< ()
+  rec
+    flapped <- shipBounded game -< ctrl
 
-  score' <- accumHold (game ^. gameScore . score) -< (+1) <$ loopE
-  stopped <- stopGame -< execState
-    ( gameScore . score .= score'
-    >> gameShip .= flapped
-    >> gameAsteroidBelt .= looped
-    ) game
+    multGen <- noiseR (game ^. gameMultRange) gen -< ()
+
+    let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y)
+          $ forward ^. asteroidBeltHead
+        vMult = generate ^. asteroidBeltHead . asteroidVMult <$ astersEnd
+
+    accel <- astersAccel
+      $ game ^. gameAsteroidBelt . asteroidBeltHead . asteroidV
+      -< (generate, vMult)
+
+    forward <- astersForward (game ^. gameAsteroidBelt)
+      >>> iPre (game ^. gameAsteroidBelt) -< accel
+
+    offset <- accumHold 0
+      -< ( + forward
+         ^. asteroidBeltHead . asteroidSprite . spriteRect . rectD . _x
+        ) . (+ game ^. gameBounds . _x) <$ astersEnd
+
+    let looped = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset)
+          forward
+
+    astersEnd <- astersAroundE
+      ( game ^. gameAsteroidBelt . asteroidBeltHead . asteroidSprite
+        . spriteRect . rectP . _x
+      ) -< game & gameAsteroidBelt .~ forward
+
+    mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ astersEnd
+
+    score' <- accumHold 0 -< (+1) <$ astersEnd
 
   returnA -< execState
-    ( gameQuit .= ctrl ^. controllerQuit
-    ) stopped
+    ( gameShip .= flapped
+    >> gameAsteroidBelt .= looped
+    >> gameMultObj . multObjMult .= mult'
+    >> gameQuit .= ctrl ^. controllerQuit
+    >> gameScore . score .= score'
+    ) game
+
+astersForward :: AsteroidBelt -> SF AsteroidBelt AsteroidBelt
+astersForward belt0 = proc belt -> do
+  move <- integral >>^ (asteroidSprite . spriteRect . rectP . _x .~)
+    . (+ belt0 ^. asteroidBeltHead . asteroidSprite . spriteRect . rectP . _x)
+    -< belt ^. asteroidBeltHead . asteroidV
+  returnA -< eitherFmap move belt
+
+gameBoundTraversed :: Double -> SF Game (Event Game, Event Game)
+gameBoundTraversed d = proc g -> do
+  x <- integral >>^ (+ d)
+    -< (g ^. gameAsteroidBelt . asteroidBeltHead . asteroidV)
+  e <- edge -< x
+    + ( g ^. gameAsteroidBelt . asteroidBeltHead . asteroidSprite . spriteRect
+       . rectD . _x
+      ) <= 0
+  returnA -< dup $ g <$ e
+
+astersAroundE :: Double -> SF Game (Event Game)
+astersAroundE d = dSwitch (gameBoundTraversed d)
+  $ astersAroundE . (^. gameBounds . _x)
+
+astersAccel :: Double -> SF (AsteroidBelt, Event Double) AsteroidBelt
+astersAccel d = proc (a, e) -> do
+  v <- accumHold d -< (* a ^. asteroidBeltHead . asteroidVMult) <$ e
+  returnA -< eitherFmap (asteroidV .~ v) a
 
 shipFall :: Ship -> SF a Ship
 shipFall ship = proc _ -> do
@@ -70,31 +122,3 @@ shipBottom game = stopShip
 shipBounded :: Game -> SF Controller Ship
 shipBounded game = stopShip 0 LT (shipBottom . ($ game) . set gameShip)
   (game ^. gameShip)
-
-asteroidBeltForward :: AsteroidBelt -> SF a AsteroidBelt
-asteroidBeltForward belt = proc _ -> integral
-  >>^ flip eitherFmap belt . (asteroidSprite . spriteRect . rectP . _x .~)
-  . (+ aster ^. asteroidSprite . spriteRect . rectP . _x) -< aster ^. asteroidV
-  where aster = either id id $ head belt
-
-asteroidBeltEnd :: AsteroidBelt -> SF a ((AsteroidBelt, Event AsteroidBelt), Event AsteroidBelt)
-asteroidBeltEnd
-  = (>>> edgeCond
-      ((((< 0) .) . (+) <$> view (rectP . _x) <*> view (rectD . _x))
-       . (^. asteroidSprite . spriteRect) . either id id . head) >>^ ((,) <*> snd)) . asteroidBeltForward
-
-asteroidBeltLoop :: Game -> SF a (AsteroidBelt, Event AsteroidBelt)
-asteroidBeltLoop game0 = dSwitch (asteroidBeltEnd $ game0 ^. gameAsteroidBelt)
-  (\asters -> asteroidBeltLoop $ game0
-    & gameAsteroidBelt .~ eitherFmap
-    (execState
-     ( asteroidSprite . spriteRect . rectP . _x .= game0 ^. gameBounds . _x
-       >> asteroidV *= either id id (head asters) ^. asteroidVMult
-     )) asters
-  )
-
-shipCollideWrong :: SF Game (Game, Event Game)
-shipCollideWrong = edgeCond $ or . uncurry fmap . (rectCollide . (^. gameShip . shipSprite . spriteRect) &&& map (^. asteroidSprite . spriteRect) . lefts . view gameAsteroidBelt)
-
-stopGame :: SF Game Game
-stopGame = switch shipCollideWrong $ constant . (gameOver .~ True)

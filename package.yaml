@@ -10,7 +10,7 @@ extra-source-files:
 - README.org
 
 data-files:
-  - res/*.bmp
+  - res/*
 
 synopsis:            Flappy bird to practice multiplication.
 category:            Game

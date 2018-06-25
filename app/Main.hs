@@ -15,7 +15,11 @@ theFont = SDL.Font.initialize >> getDataFileName "res/pro-font-windows.ttf" >>= 
 
 multObjAster0 :: IO (MultObj, AsteroidBelt)
 multObjAster0 = do
-  mul <- randomRIO (Mult 0 0 . replicate 4 $ Left 0, Mult 99 99 . replicate 4 $ Left 9801)
+  mul <- randomRIO
+    ( Mult 0 0 . replicate 4 $ Right 0
+    , Mult 99 99 . replicate 4 $ Right 9801
+    )
+
   f <- theFont
   let mulo = MultObj
         { _multObjPos = P $ V2 0 0

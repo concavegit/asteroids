@@ -73,6 +73,7 @@ module Types
   -- * Extra Lenses
   , rectP
   , rectD
+  , asteroidBeltHead
   ) where
 
 import           Control.Lens
@@ -191,8 +192,10 @@ instance Object Sprite where
 instance Object TextBox where
   objRect = flip Rectangle (V2 0 0) . view textBoxPoint
   objDraw r w o = do
-    txt <- solid (o ^. textBoxFont) (o ^. textBoxColor) (o ^. textBoxText) >>= createTextureFromSurface r
-    dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2 <$> size (o ^. textBoxFont) (o ^. textBoxText)
+    txt <- solid (o ^. textBoxFont) (o ^. textBoxColor) (o ^. textBoxText)
+      >>= createTextureFromSurface r
+    dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2
+      <$> size (o ^. textBoxFont) (o ^. textBoxText)
     copy r txt mzero $ pure dest
 
 instance Object Game where
@@ -266,7 +269,8 @@ instance Random Mult where
     randMultChoices n a b
 
     where
-      r = ms & both %~ round . sqrt . fromIntegral . head . lefts . view multChoices
+      r = ms & both
+        %~ round . sqrt . fromIntegral . head . rights . view multChoices
 
 rectP :: Lens' (Rectangle a) (Point V2 a)
 rectP f (Rectangle p a) = flip Rectangle a <$> f p
@@ -280,6 +284,10 @@ rand = state random
 randR :: (RandomGen s, Random a) => (a, a) -> State s a
 randR = state . randomR
 
+asteroidBeltHead :: Lens' AsteroidBelt Asteroid
+asteroidBeltHead f (a:ax) = (:ax) <$> g
+  where g = either (fmap Left . f) (fmap Right . f) a
+
 randMultChoices :: RandomGen s => Int -> Int -> Int -> State s Mult
 randMultChoices n a b = map (Left . (wrong !!))
   <$> replicateM (n - 1) (randR (0, length wrong - 1))
@@ -292,7 +300,8 @@ randMultChoices n a b = map (Left . (wrong !!))
     b' = div b 10
     ans = a * b
     wrong = filter (/= ans)
-      $ (+ (mod a 10 * mod b 10)) . (* 10) <$> [a' * b' * 10 .. (a' + 1) * (b' + 1) * 10]
+      $ (+ (mod a 10 * mod b 10)) . (* 10)
+      <$> [a' * b' * 10 .. (a' + 1) * (b' + 1) * 10]
 
 genAsteroids :: [Either Int Int] -> Double -> Asteroid -> AsteroidBelt
 genAsteroids es h a =
