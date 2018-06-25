@@ -266,7 +266,7 @@ instance Random Mult where
     randMultChoices n a b
 
     where
-      r = ms & both %~ round . sqrt . fromIntegral . head . lefts . view multChoices
+      r = ms & both %~ round . sqrt . fromIntegral . head . rights . view multChoices
 
 rectP :: Lens' (Rectangle a) (Point V2 a)
 rectP f (Rectangle p a) = flip Rectangle a <$> f p
