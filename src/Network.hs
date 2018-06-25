@@ -15,6 +15,8 @@ import           Types
 network :: RandomGen g => g -> Game -> SF Controller Game
 network gen game = proc ctrl -> do
   rec
+    flapped <- shipBounded game -< ctrl
+
     multGen <- noiseR (game ^. gameMultRange) gen -< ()
 
     let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y)
@@ -46,7 +48,8 @@ network gen game = proc ctrl -> do
     score' <- accumHold 0 -< (+1) <$ astersEnd
 
   returnA -< execState
-    ( gameAsteroidBelt .= looped
+    ( gameShip .= flapped
+    >> gameAsteroidBelt .= looped
     >> gameMultObj . multObjMult .= mult'
     >> gameQuit .= ctrl ^. controllerQuit
     >> gameScore . score .= score'
@@ -77,3 +80,45 @@ astersAccel :: Double -> SF (AsteroidBelt, Event Double) AsteroidBelt
 astersAccel d = proc (a, e) -> do
   v <- accumHold d -< (* a ^. asteroidBeltHead . asteroidVMult) <$ e
   returnA -< eitherFmap (asteroidV .~ v) a
+
+shipFall :: Ship -> SF a Ship
+shipFall ship = proc _ -> do
+  rec
+    let a = g - v * g / vT
+    v <- integral >>^ (+ ship ^. shipV) -< a
+    y <- integral >>^ (+ ship ^. shipSprite . spriteRect . rectP . _y) -< v
+  returnA -< execState (shipV .= y >> shipSprite . spriteRect . rectP . _y .= y)
+    ship
+
+  where
+    g = ship ^. shipG
+    vT = ship ^. shipVT
+
+shipFlap' :: Ship -> SF Controller (Ship, Event Ship)
+shipFlap' = (>>^ \(a, b) -> (a, a <$ b)) . (&&& (view controllerFlap ^>> edge))
+  . shipFall
+
+shipFlap :: Ship -> SF Controller Ship
+shipFlap ship0 = switch (shipFlap' ship0)
+  $ shipFlap . ((&) <*> set shipV . negate . view shipVT)
+
+stopShip' :: Double -> Ordering -> (a -> SF b Ship) -> a
+  -> SF b (Ship, Event Ship)
+stopShip' bound comp
+  = ((>>> edgeCond
+      ((== comp) . flip compare bound
+       . view (shipSprite . spriteRect . rectP . _y))) .)
+
+stopShip :: Double -> Ordering -> (Ship -> SF a Ship) -> Ship -> SF a Ship
+stopShip bound comp = switch1 (stopShip' bound comp)
+  $ execState (shipSprite . spriteRect . rectP . _y .= bound >> shipV .= 0)
+
+shipBottom :: Game -> SF Controller Ship
+shipBottom game = stopShip
+  ( game ^. gameBounds . _y - game ^. gameShip . shipSprite . spriteRect . rectD
+   . _y
+  ) GT shipFlap (game ^. gameShip)
+
+shipBounded :: Game -> SF Controller Ship
+shipBounded game = stopShip 0 LT (shipBottom . ($ game) . set gameShip)
+  (game ^. gameShip)

@@ -1,5 +1,3 @@
-{-# LANGUAGE Arrows #-}
-
 module Network.Extra
   ( -- * 'SF's
     edgeCond
@@ -7,19 +5,12 @@ module Network.Extra
 
   -- * Helper Functions
   , eitherFmap
-  , gameQuitF
   , rectCollide
   ) where
 
 import           Control.Applicative
-import           Control.Lens
 import           FRP.Yampa
 import           SDL                 hiding (Event)
-import           Types
-
--- | Set '_gameQuit' to '_controllerQuit'.
-gameQuitF :: Controller -> Game -> Game
-gameQuitF =  set gameQuit . view controllerQuit
 
 -- | Map over an 'AsteroidBelt'.
 eitherFmap :: Functor f => (a -> b) -> f (Either a a) -> f (Either b b)
