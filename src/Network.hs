@@ -20,16 +20,19 @@ network gen game = proc ctrl -> do
 
     let asteroidBelt' = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head asters
     asters <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< asteroidBelt'
-    e <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
+    astersX <- integral -< view asteroidV . either id id $ head asters
+    offset <- accumHold 0 -< (+ ((^. asteroidSprite . spriteRect . rectD . _x) . either id id . head) asters) . (+ game ^. gameBounds . _x) <$ astersEnd
+    let asters' = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset) asters
+    astersEnd <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
       . either id id . head $ game ^. gameAsteroidBelt
       -< game & gameAsteroidBelt .~ asters
-    mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ e
-    x <- hold False -< True <$ e
+    mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ astersEnd
+    x <- hold False -< True <$ astersEnd
 
-    score' <- accumHold 0 -< (+1) <$ e
+    score' <- accumHold 0 -< (+1) <$ astersEnd
 
   returnA -< execState
-    ( gameAsteroidBelt .= asters
+    ( gameAsteroidBelt .= asters'
     >> gameQuit .= ctrl ^. controllerQuit
     >> gameScore . score .= score'
     ) game
@@ -43,7 +46,8 @@ asteroidBeltForward belt0 = proc belt -> do
 
 gameBoundTraversed :: Double -> SF Game (Event Game, Event Game)
 gameBoundTraversed d = proc g -> do
-  x <- integral >>> (<= 0) . (+ d) ^>> edge -< view asteroidV . either id id . head $ g ^. gameAsteroidBelt
+  y <- integral >>^ (+ d) -< view asteroidV . either id id . head $ g ^. gameAsteroidBelt
+  x <- edge -< (<= 0) . (+ y) . (^. asteroidSprite . spriteRect . rectD . _x) . either id id . head $ g ^. gameAsteroidBelt
   returnA -< dup $ g <$ x
 
 asteroidBeltAroundE :: Double -> SF Game (Event Game)
