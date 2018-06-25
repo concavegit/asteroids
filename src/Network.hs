@@ -17,7 +17,7 @@ network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
 network' gen game = proc ctrl -> do
   rec
     flapped <- shipBounded game -< ctrl
-    multGen <- noiseR (game ^. gameMultRange) (snd . next . fst $ split gen) -< ()
+    multGen <- noiseR (game ^. gameMultRange) (fst $ split gen) -< ()
 
     let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y)
           $ forward ^. asteroidBeltHead
@@ -44,7 +44,9 @@ network' gen game = proc ctrl -> do
         . spriteRect . rectP . _x
       ) -< game & gameAsteroidBelt .~ forward
 
-    mult' <- hold (fst . randomR (game ^. gameMultRange) . fst $ split gen) -< multGen <$ astersEnd
+    init  <- now () -< ()
+    mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen
+      <$ tag astersEnd () `lMerge` init
 
     score' <- accumHold 0 -< (+1) <$ astersEnd
 
