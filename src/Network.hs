@@ -7,17 +7,17 @@ module Network
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
+import           Data.Either
 import           FRP.Yampa
 import           Network.Extra
 import           SDL                 hiding (Event)
 import           Types
 
-network :: RandomGen g => g -> Game -> SF Controller Game
-network gen game = proc ctrl -> do
+network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
+network' gen game = proc ctrl -> do
   rec
     flapped <- shipBounded game -< ctrl
-
-    multGen <- noiseR (game ^. gameMultRange) gen -< ()
+    multGen <- noiseR (game ^. gameMultRange) (snd . next . fst $ split gen) -< ()
 
     let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y)
           $ forward ^. asteroidBeltHead
@@ -38,22 +38,33 @@ network gen game = proc ctrl -> do
     let looped = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset)
           forward
 
+
     astersEnd <- astersAroundE
       ( game ^. gameAsteroidBelt . asteroidBeltHead . asteroidSprite
         . spriteRect . rectP . _x
       ) -< game & gameAsteroidBelt .~ forward
 
-    mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ astersEnd
+    mult' <- hold (fst . randomR (game ^. gameMultRange) . fst $ split gen) -< multGen <$ astersEnd
 
     score' <- accumHold 0 -< (+1) <$ astersEnd
 
-  returnA -< execState
-    ( gameShip .= flapped
-    >> gameAsteroidBelt .= looped
-    >> gameMultObj . multObjMult .= mult'
-    >> gameQuit .= ctrl ^. controllerQuit
-    >> gameScore . score .= score'
-    ) game
+  let gamePlaying = execState
+        ( gameShip .= flapped
+        >> gameAsteroidBelt .= looped
+        >> gameMultObj . multObjMult .= mult'
+        >> gameScore . score .= score'
+        >> gameQuit .= ctrl ^. controllerQuit
+        ) game
+
+  restartPressed <- edge -< ctrl ^. controllerFlap
+
+  stopped <- stopGame -< gamePlaying
+  let restart = gate restartPressed (stopped ^. gameOver)
+
+  returnA -< (stopped, snd (split gen) <$ restart)
+
+network :: RandomGen a => a -> Game -> SF Controller Game
+network gen game = switch (network' gen game) $ flip network game
 
 astersForward :: AsteroidBelt -> SF AsteroidBelt AsteroidBelt
 astersForward belt0 = proc belt -> do
@@ -122,3 +133,18 @@ shipBottom game = stopShip
 shipBounded :: Game -> SF Controller Ship
 shipBounded game = stopShip 0 LT (shipBottom . ($ game) . set gameShip)
   (game ^. gameShip)
+
+shipCollide :: (Functor f, Foldable f) => (AsteroidBelt -> f Asteroid) -> SF Game (Game, Event Game)
+shipCollide f = edgeCond $ or
+  . ( fmap . rectCollide <$> (^. gameShip . shipSprite . spriteRect)
+     <*> fmap (^. asteroidSprite . spriteRect) . f . view gameAsteroidBelt
+    )
+
+shipCollideWrong :: SF Game (Game, Event Game)
+shipCollideWrong = shipCollide lefts
+
+shipCollideRight :: SF Game (Game, Event Game)
+shipCollideRight = shipCollide rights
+
+stopGame :: SF Game Game
+stopGame = switch shipCollideWrong $ constant . (gameOver .~ True)
