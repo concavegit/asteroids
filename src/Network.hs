@@ -7,7 +7,6 @@ module Network
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
-import           Data.Either
 import           FRP.Yampa
 import           Network.Extra
 import           SDL                 hiding (Event)
@@ -18,21 +17,26 @@ network gen game = proc ctrl -> do
   rec
     multGen <- noiseR (game ^. gameMultRange) gen -< ()
 
-    let asteroidBelt' = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head asters
-    asters <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< asteroidBelt'
-    astersX <- integral -< view asteroidV . either id id $ head asters
-    offset <- accumHold 0 -< (+ ((^. asteroidSprite . spriteRect . rectD . _x) . either id id . head) asters) . (+ game ^. gameBounds . _x) <$ astersEnd
-    let asters' = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset) asters
+    let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head forward
+        vMult = (view asteroidVMult . either id id . head) generate <$ astersEnd
+    -- accel <- accumHold (game ^. gameAsteroidBelt) -< eitherFmap (asteroidV *~ (view asteroidVMult . either id id . head $ game ^. gameAsteroidBelt)) <$ astersEnd
+    accel <- astersAccel (view asteroidV . either id id . head $ game ^. gameAsteroidBelt) -< (generate, vMult)
+
+    forward <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< accel
+    offset <- accumHold 0 -< (+ ((^. asteroidSprite . spriteRect . rectD . _x) . either id id . head) forward) . (+ game ^. gameBounds . _x) <$ astersEnd
+
+    let looped = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset) forward
     astersEnd <- asteroidBeltAroundE . (^. asteroidSprite . spriteRect . rectP . _x)
       . either id id . head $ game ^. gameAsteroidBelt
-      -< game & gameAsteroidBelt .~ asters
+      -< game & gameAsteroidBelt .~ forward
+
     mult' <- hold (game ^. gameMultObj . multObjMult) -< multGen <$ astersEnd
-    x <- hold False -< True <$ astersEnd
 
     score' <- accumHold 0 -< (+1) <$ astersEnd
 
   returnA -< execState
-    ( gameAsteroidBelt .= asters'
+    ( gameAsteroidBelt .= looped
+    >> gameMultObj . multObjMult .= mult'
     >> gameQuit .= ctrl ^. controllerQuit
     >> gameScore . score .= score'
     ) game
@@ -52,3 +56,8 @@ gameBoundTraversed d = proc g -> do
 
 asteroidBeltAroundE :: Double -> SF Game (Event Game)
 asteroidBeltAroundE d = dSwitch (gameBoundTraversed d) $ asteroidBeltAroundE . (^. gameBounds . _x)
+
+astersAccel :: Double -> SF (AsteroidBelt, Event Double) AsteroidBelt
+astersAccel d = proc (a, e) -> do
+  v <- accumHold d -< (* (view asteroidVMult . either id id $ head a)) <$ e
+  returnA -< eitherFmap (asteroidV .~ v) a
