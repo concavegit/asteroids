@@ -19,7 +19,6 @@ network gen game = proc ctrl -> do
 
     let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y) . either id id  $ head forward
         vMult = (view asteroidVMult . either id id . head) generate <$ astersEnd
-    -- accel <- accumHold (game ^. gameAsteroidBelt) -< eitherFmap (asteroidV *~ (view asteroidVMult . either id id . head $ game ^. gameAsteroidBelt)) <$ astersEnd
     accel <- astersAccel (view asteroidV . either id id . head $ game ^. gameAsteroidBelt) -< (generate, vMult)
 
     forward <- asteroidBeltForward (game ^. gameAsteroidBelt) >>> iPre (game ^. gameAsteroidBelt) -< accel
