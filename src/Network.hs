@@ -12,6 +12,7 @@ import           Data.Either
 import           FRP.Yampa
 import           Network.Extra
 import           SDL                 hiding (Event)
+import           System.IO.Unsafe
 import           Types
 
 network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
