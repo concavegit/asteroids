@@ -7,10 +7,12 @@ module Network
 import           Control.Arrow
 import           Control.Lens
 import           Control.Monad.State
+import           Data.Bool
 import           Data.Either
 import           FRP.Yampa
 import           Network.Extra
 import           SDL                 hiding (Event)
+import           System.IO.Unsafe
 import           Types
 
 network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
@@ -30,13 +32,19 @@ network' gen game = proc ctrl -> do
     forward <- astersForward (game ^. gameAsteroidBelt)
       >>> iPre (game ^. gameAsteroidBelt) -< accel
 
+    collideRight <- shipCollideRight >>> snd ^>> iPre noEvent -< gamePlaying
+
+    astersSwitch <- ((False <$) *** (True <$)) ^>> uncurry lMerge ^>> hold False -< (astersEnd, collideRight)
+    let noRights = filter isLeft forward
+        astersSwitched = seq (unsafePerformIO (print $ isEvent collideRight)) (bool forward noRights astersSwitch)
+
     offset <- accumHold 0
       -< ( + forward
          ^. asteroidBeltHead . asteroidSprite . spriteRect . rectD . _x
         ) . (+ game ^. gameBounds . _x) <$ astersEnd
 
     let looped = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset)
-          forward
+          astersSwitched
 
 
     astersEnd <- astersAroundE
@@ -50,18 +58,18 @@ network' gen game = proc ctrl -> do
 
     score' <- accumHold 0 -< (+1) <$ astersEnd
 
-  let gamePlaying = execState
-        ( gameShip .= flapped
-        >> gameAsteroidBelt .= looped
-        >> gameMultObj . multObjMult .= mult'
-        >> gameScore . score .= score'
-        >> gameQuit .= ctrl ^. controllerQuit
-        ) game
+    let gamePlaying = execState
+          ( gameShip .= flapped
+            >> gameAsteroidBelt .= looped
+            >> gameMultObj . multObjMult .= mult'
+            >> gameScore . score .= score'
+            >> gameQuit .= ctrl ^. controllerQuit
+          ) game
 
-  restartPressed <- edge -< ctrl ^. controllerFlap
+    restartPressed <- edge -< ctrl ^. controllerFlap
 
-  stopped <- stopGame -< gamePlaying
-  let restart = gate restartPressed (stopped ^. gameOver)
+    stopped <- stopGame -< gamePlaying
+    let restart = gate restartPressed (stopped ^. gameOver)
 
   returnA -< (stopped, snd (split gen) <$ restart)
 
@@ -150,3 +158,6 @@ shipCollideRight = shipCollide rights
 
 stopGame :: SF Game Game
 stopGame = switch shipCollideWrong $ constant . (gameOver .~ True)
+
+astersDel :: SF (Event (), Event ()) Bool
+astersDel = (False <$) *** (True <$) ^>> uncurry lMerge ^>> hold False
