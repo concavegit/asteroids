@@ -58,13 +58,16 @@ world :: World
 world = World
   { _worldScale = 5
   , _worldDims = V2 128 96
-  , _worldFPS = 60}
+  , _worldFPS = 60
+  }
 
 game0 :: IO Game
 game0 = do
   ship <- ship0
   (mul, asters) <- multObjAster0
   f <- theFont
+  (sx, sy) <- (both %~ (/ world ^. worldScale) . fromIntegral) <$> size f msg
+
   pure Game
     { _gameBounds = world ^. worldDims
     , _gameScore = Score
@@ -81,8 +84,17 @@ game0 = do
     , _gameMultObj = mul
     , _gameAsteroidBelt = asters
     , _gameOver = False
+    , _gameOverMsg = TextBox
+      { _textBoxText = msg
+      , _textBoxFont = f
+      , _textBoxColor = V4 255 0 255 0
+      , _textBoxPoint = P . V2 ((world ^. worldDims . _x - sx) / 2)
+        $ (world ^. worldDims . _y - sy) / 2
+      }
     , _gameQuit = False
     }
+
+  where msg = "Game over, hit Space!"
 
 main :: IO ()
 main = game0 >>= asteroids world

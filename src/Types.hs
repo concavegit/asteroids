@@ -11,6 +11,7 @@ module Types
   , gameMultObj
   , gameAsteroidBelt
   , gameOver
+  , gameOverMsg
   , gameMultRange
   , gameQuit
   , gameScore
@@ -70,6 +71,13 @@ module Types
   , sprite
   , spriteRect
 
+  -- * TextBox
+  , TextBox (..)
+  , textBoxText
+  , textBoxFont
+  , textBoxPoint
+  , textBoxColor
+
   -- * Extra Lenses
   , rectP
   , rectD
@@ -110,6 +118,7 @@ data Game = Game
   , _gameMultRange    :: (Mult, Mult)
   , _gameScore        :: Score
   , _gameOver         :: Bool
+  , _gameOverMsg      :: TextBox
   , _gameQuit         :: Bool
   }
 
@@ -196,6 +205,8 @@ instance Object TextBox where
       >>= createTextureFromSurface r
     dest <- Rectangle (objPRect w o ^. rectP) . fmap fromIntegral . uncurry V2
       <$> size (o ^. textBoxFont) (o ^. textBoxText)
+    textureAlphaMod txt $= o ^. textBoxColor . _w
+    textureBlendMode txt $= BlendAlphaBlend
     copy r txt mzero $ pure dest
 
 instance Object Game where
@@ -207,6 +218,7 @@ instance Object Game where
     objDraw r w $ game ^. gameShip
     objDraw r w $ game ^. gameMultObj
     objDraw r w $ game ^. gameScore
+    objDraw r w $ game ^. gameOverMsg
     present r
 
 instance Object Ship where

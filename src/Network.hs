@@ -46,7 +46,6 @@ network' gen game = proc ctrl -> do
     let looped = eitherFmap (asteroidSprite . spriteRect . rectP . _x +~ offset)
           astersSwitched
 
-
     astersEnd <- astersAroundE
       ( game ^. gameAsteroidBelt . asteroidBeltHead . asteroidSprite
         . spriteRect . rectP . _x
@@ -180,4 +179,8 @@ shipCollideRight = shipCollide rights
 
 -- | Stop the game when the ship collides with a wrong answer.
 stopGame :: SF Game Game
-stopGame = switch shipCollideWrong $ constant . (gameOver .~ True)
+stopGame = switch shipCollideWrong $ \g -> proc _ -> do
+  returnA -< execState
+    ( gameOverMsg . textBoxColor . _w .= 255
+    >> gameOver .= True
+    ) g
