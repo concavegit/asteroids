@@ -67,7 +67,7 @@ network' gen game = proc ctrl -> do
 
     restartPressed <- edge -< ctrl ^. controllerFlap
 
-    stopped <- stopGame -< gamePlaying
+    stopped <- stopGame -< (ctrl, gamePlaying)
     let restart = gate restartPressed (stopped ^. gameOver)
 
   returnA -< (stopped, snd (split gen) <$ restart)
@@ -178,9 +178,12 @@ shipCollideRight :: SF Game (Game, Event Game)
 shipCollideRight = shipCollide rights
 
 -- | Stop the game when the ship collides with a wrong answer.
-stopGame :: SF Game Game
-stopGame = switch shipCollideWrong $ \g -> proc _ -> do
+-- stopGame :: SF Game Game
+-- stopGame = switch shipCollideWrong $ \g -> constant $ (gameOver .~ True) g
+
+stopGame :: SF (Controller, Game) Game
+stopGame = switch (snd ^>> shipCollideWrong) $ \g -> proc (ctrl, _) ->
   returnA -< execState
-    ( gameOverMsg . textBoxColor . _w .= 255
+    ( gameQuit .= ctrl ^. controllerQuit
     >> gameOver .= True
     ) g
