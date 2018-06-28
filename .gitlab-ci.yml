@@ -18,7 +18,7 @@ test:
   script:
     - stack test --coverage
     - mv $(stack path --local-hpc-root) coverage
-  coverage: '/\(\d+\)% expressions used/'
+  coverage: '/(\d+)% expressions used/'
   artifacts:
     paths:
       - coverage
