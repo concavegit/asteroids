@@ -1,6 +1,8 @@
 {-# LANGUAGE Arrows        #-}
 {-# LANGUAGE TupleSections #-}
 
+-- | This module contains the FRP network the game uses.
+
 module Network
   ( network
   ) where
