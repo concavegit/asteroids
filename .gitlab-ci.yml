@@ -28,7 +28,6 @@ pages:
   dependencies:
     - test
   script:
-    - echo $(stack path --local-hpc-root)
     - mv $(stack path --local-hpc-root) public
   artifacts:
     paths:
