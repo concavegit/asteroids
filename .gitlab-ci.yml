@@ -25,9 +25,11 @@ build:
 
 pages:
   stage: deploy
+  dependencies:
+    - test
   script:
-    - stack test --coverage
-    - cp -r $(stack path --local-hpc-root) public
+    - echo $(stack path --local-hpc-root)
+    - mv $(stack path --local-hpc-root) public
   artifacts:
     paths:
       - public
