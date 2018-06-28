@@ -1,4 +1,5 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows        #-}
+{-# LANGUAGE TupleSections #-}
 
 module Network
   ( network
@@ -14,10 +15,12 @@ import           Network.Extra
 import           SDL                 hiding (Event)
 import           Types
 
+data ShipEvent = ShipTop | ShipBottom | ShipFlap
+
 network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
 network' gen game = proc ctrl -> do
   rec
-    flapped <- shipBounded game -< ctrl
+    flapped <- shipFlapBounded game -< (game, ctrl)
     multGen <- noiseR (game ^. gameMultRange) (fst $ split gen) -< ()
 
     let generate = genAsteroids (mult' ^. multChoices) (game ^. gameBounds . _y)
@@ -123,47 +126,39 @@ shipFall ship = proc _ -> do
     g = ship ^. shipG
     vT = ship ^. shipVT
 
-shipFlap' :: Ship -> SF Controller (Ship, Event Ship)
-shipFlap' = (>>^ \(a, b) -> (a, a <$ b)) . (&&& (view controllerFlap ^>> edge))
-  . shipFall
+shipFlapBounded' :: Ship
+  -> SF (Game, Controller) (Ship, Event (ShipEvent, Game))
+shipFlapBounded' s = proc (g, c) -> do
+  flapped <- shipFall s -< ()
+  shipFlap <- edgeTag ShipFlap -< c ^. controllerFlap
+  let sr = flapped ^. shipSprite . spriteRect
+  shipBottom <- edgeTag ShipBottom
+    -< sr ^. rectP . _y + sr ^. rectD . _y > g ^. gameBounds . _y
+  shipTop <- edgeTag ShipTop -< sr ^. rectP . _y < 0
+  returnA -<
+    ( flapped
+    , (, g & gameShip .~ flapped)
+      <$> shipFlap `lMerge` shipBottom `lMerge` shipTop)
 
--- | While falling, give the ship an upwards velocity of '_shipVT'
--- when commanded.
-shipFlap :: Ship -> SF Controller Ship
-shipFlap ship0 = switch (shipFlap' ship0)
-  $ shipFlap . ((&) <*> set shipV . negate . view shipVT)
+shipFlapBounded :: Game -> SF (Game, Controller) Ship
+shipFlapBounded = flip switch (uncurry handleEvent) . shipFlapBounded'
+  . view gameShip
+  where
+    handleEvent ShipFlap g' = shipFlapBounded
+      $ g' & gameShip . shipV .~ - g' ^. gameShip . shipVT
+    handleEvent ShipBottom g' = shipFlapBounded $ execState
+      ( gameShip . shipV .= 0
+        >> gameShip . shipSprite . spriteRect . rectP . _y
+        .= g' ^. gameBounds . _y
+        - g' ^. gameShip . shipSprite . spriteRect . rectD . _y
+      ) g'
+    handleEvent ShipTop g' = shipFlapBounded $ execState
+      ( gameShip . shipV .= 0
+        >> gameShip . shipSprite . spriteRect . rectP . _y .= 0
+      ) g'
 
-stopShip' :: Double -> Ordering -> (a -> SF b Ship) -> a
-  -> SF b (Ship, Event Ship)
-stopShip' bound comp
-  = ((>>> edgeCond
-      ((== comp) . flip compare bound
-       . view (shipSprite . spriteRect . rectP . _y))) .)
-
--- | Stop the ship when it compares to some distance.
--- For inputs d, o, f, x:
---   * d is the distance
---   * o is the 'Ordering' to trigger a stop when comparing the ship
---     to the distance.
---   * f is a signal that generates a ship given an initial condition.
---   * x is the initial condition.
-stopShip :: Double -> Ordering -> (Ship -> SF a Ship) -> Ship -> SF a Ship
-stopShip bound comp = switch1 (stopShip' bound comp)
-  $ execState (shipSprite . spriteRect . rectP . _y .= bound >> shipV .= 0)
-
--- | Stop the ship at the bottom of the game bounds.
-shipBottom :: Game -> SF Controller Ship
-shipBottom game = stopShip
-  ( game ^. gameBounds . _y - game ^. gameShip . shipSprite . spriteRect . rectD
-   . _y
-  ) GT shipFlap (game ^. gameShip)
-
--- | Stop the ship before it exits the game bounds.
-shipBounded :: Game -> SF Controller Ship
-shipBounded game = stopShip 0 LT (shipBottom . ($ game) . set gameShip)
-  (game ^. gameShip)
-
-shipCollide :: (Functor f, Foldable f) => (AsteroidBelt -> f Asteroid) -> SF Game (Game, Event Game)
+shipCollide :: (Functor f, Foldable f) => (AsteroidBelt -> f Asteroid)
+  -> SF Game (Game, Event Game)
 shipCollide f = edgeCond $ or
   . ( fmap . rectCollide <$> (^. gameShip . shipSprite . spriteRect)
      <*> fmap (^. asteroidSprite . spriteRect) . f . view gameAsteroidBelt
