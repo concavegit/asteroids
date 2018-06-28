@@ -22,3 +22,13 @@ build:
   stage: build
   script:
     - stack build
+
+pages:
+  stage: deploy
+  script:
+    - mv $(stack path --local-hpc-root) public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
