@@ -139,7 +139,8 @@ shipFlapBounded' s = proc (g, c) -> do
     ( flapped
     , (, g & gameShip .~ flapped)
       <$> shipFlap `lMerge` shipBottom `lMerge` shipTop)
-
+-- | Make the ship fall, responding to hitting the bottom, top, or
+-- flap being pressed.
 shipFlapBounded :: Game -> SF (Game, Controller) Ship
 shipFlapBounded = flip switch (uncurry handleEvent) . shipFlapBounded'
   . view gameShip
@@ -175,10 +176,10 @@ shipCollideRight = shipCollide rights
 -- | Stop the game when the ship collides with a wrong answer.
 -- stopGame :: SF Game Game
 -- stopGame = switch shipCollideWrong $ \g -> constant $ (gameOver .~ True) g
-
 stopGame :: SF (Controller, Game) Game
 stopGame = switch (snd ^>> shipCollideWrong) $ \g -> proc (ctrl, _) ->
   returnA -< execState
     ( gameQuit .= ctrl ^. controllerQuit
     >> gameOver .= True
+    >> gameOverMsg . textBoxColor . _w .= 255
     ) g
