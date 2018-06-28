@@ -26,7 +26,8 @@ build:
 pages:
   stage: deploy
   script:
-    - mv $(stack path --local-hpc-root) public
+    - stack test --coverage
+    - cp -r $(stack path --local-hpc-root) public
   artifacts:
     paths:
       - public
