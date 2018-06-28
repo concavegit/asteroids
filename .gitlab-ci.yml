@@ -17,6 +17,9 @@ test:
   stage: test
   script:
     - stack test --coverage
+  artifacts:
+    paths:
+      - $(stack path --local-hpc-root)
 
 build:
   stage: build
