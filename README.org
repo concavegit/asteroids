@@ -4,6 +4,8 @@ Flappy Bird with math.
 [[file:sample.png]]
 
 The goal is to fly through the asteroid with the answer to the presented multiplication problem.
+The controls are simple: hit the space bar to go up.
+When the game is over, hit the space bar again to restart.
 
 ** Installation
 1. Have sdl2 and sdl2-tff installed. For Ubuntu:
