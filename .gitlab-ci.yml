@@ -17,9 +17,10 @@ test:
   stage: test
   script:
     - stack test --coverage
+    - mv $(stack path --local-hpc-root) coverage
   artifacts:
     paths:
-      - $(stack path --local-hpc-root)
+      - coverage
 
 build:
   stage: build
@@ -31,7 +32,7 @@ pages:
   dependencies:
     - test
   script:
-    - mv $(stack path --local-hpc-root) public
+    - mv coverage public
   artifacts:
     paths:
       - public
