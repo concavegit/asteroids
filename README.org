@@ -1,5 +1,3 @@
-*Currently incomplete. I will push a tagged release when ready*
-
 * Asteroids
 Flappy Bird with math.
 
