@@ -33,6 +33,7 @@ pages:
     - test
   script:
     - mv coverage public
+  coverage: '/(\d+)% expressions used/m'
   artifacts:
     paths:
       - public
