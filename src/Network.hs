@@ -141,6 +141,7 @@ shipFlapBounded' s = proc (g, c) -> do
     ( flapped
     , (, g & gameShip .~ flapped)
       <$> shipTop `lMerge` shipFlap `lMerge` shipBottom)
+
 -- | Make the ship fall, responding to hitting the bottom, top, or
 -- flap being pressed.
 shipFlapBounded :: Game -> SF (Game, Controller) Ship
