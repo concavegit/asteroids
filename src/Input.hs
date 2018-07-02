@@ -1,3 +1,5 @@
+-- | This module offers input detection for the game.
+
 module Input
   ( senseController
   , senseDT
@@ -8,6 +10,8 @@ import           Data.IORef
 import           SDL
 import           Types
 
+-- | Return a 'Bool' corresponding to whether or not the specified
+-- 'KeyCode' has been pressed.
 keyDown :: Keycode -> Event -> Bool
 keyDown
   k
@@ -21,9 +25,12 @@ handleEvent e
   | keyDown KeycodeSpace e = controllerFlap .~ True
   | otherwise = id
 
+-- | Modify an initial 'Controller' based on input.
 senseController :: Controller -> IO Controller
 senseController c = ($ c) . foldr ((.) . handleEvent) id <$> pollEvents
 
+-- | Sense the amount of time delta between samples for the FRP
+-- network.
 senseDT :: IORef Double -> IO Double
 senseDT tr = do
   t0 <- readIORef tr

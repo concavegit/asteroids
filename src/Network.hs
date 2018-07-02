@@ -19,6 +19,7 @@ import           Types
 
 data ShipEvent = ShipTop | ShipBottom | ShipFlap
 
+-- | Play one iteration of the game.
 network' :: RandomGen g => g -> Game -> SF Controller (Game, Event g)
 network' gen game = proc ctrl -> do
   rec
@@ -177,8 +178,6 @@ shipCollideRight :: SF Game (Game, Event Game)
 shipCollideRight = shipCollide rights
 
 -- | Stop the game when the ship collides with a wrong answer.
--- stopGame :: SF Game Game
--- stopGame = switch shipCollideWrong $ \g -> constant $ (gameOver .~ True) g
 stopGame :: SF (Controller, Game) Game
 stopGame = switch (snd ^>> shipCollideWrong) $ \g -> proc (ctrl, _) ->
   returnA -< execState
