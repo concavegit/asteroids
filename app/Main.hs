@@ -10,9 +10,11 @@ import           SDL.Font
 import           System.Random
 import           Types
 
+-- | The font which will be used in the game.
 theFont :: IO Font
 theFont = SDL.Font.initialize >> getDataFileName "res/pro-font-windows.ttf" >>= flip load 40
 
+-- | Generate the initial multiplication object and its corresponding 'AsteroidBelt'.
 multObjAster0 :: IO (MultObj, AsteroidBelt)
 multObjAster0 = do
   mul <- randomRIO
@@ -40,6 +42,7 @@ multObjAster0 = do
         }
   pure (mulo, asts)
 
+-- | Generate the initial ship state.
 ship0 :: IO Ship
 ship0 =
   do
@@ -54,6 +57,7 @@ ship0 =
       , _shipG = 80
       }
 
+-- | The initial world state.
 world :: World
 world = World
   { _worldScale = 5
@@ -61,6 +65,7 @@ world = World
   , _worldFPS = 60
   }
 
+-- | The initial game state.
 game0 :: IO Game
 game0 = do
   ship <- ship0
