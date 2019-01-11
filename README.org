@@ -1,4 +1,5 @@
-* Asteroids
+#+title: Asteroids
+
 Flappy Bird with math.
 
 [[file:sample.png]]
