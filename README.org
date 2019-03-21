@@ -10,7 +10,7 @@ When the game is over, hit the space bar again to restart.
 
 ** Installation
 1. Have sdl2 and sdl2-tff installed. For Ubuntu:
-   =sudo apt install libsdl2-dev sdl2-ttf-dev=
+   =sudo apt install libsdl2-dev libsdl2-ttf-dev=
   
 2. Install stack. For Ubuntu:
    =sudo apt install haskell-stack=
