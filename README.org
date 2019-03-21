@@ -14,9 +14,12 @@ When the game is over, hit the space bar again to restart.
   
 2. Install stack. For Ubuntu:
    =sudo apt install haskell-stack=
+
+3. Upgrade stack because the Ubuntu version is out of date:
+   =stack upgrade=
   
-3. Clone the project: =git clone https://gitlab.com/concavegit/asteroids.git=
+4. Clone the project: =git clone https://gitlab.com/concavegit/asteroids.git=
 
-4. Navigate to the project: =cd asteroids=
+5. Navigate to the project: =cd asteroids=
 
-5. Install to =~/.local/bin=: =stack install=. The executable name is =asteroids=.
+6. Install to =~/.local/bin=: =stack install=. The executable name is =asteroids=.
